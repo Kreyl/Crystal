@@ -33,9 +33,9 @@
         "other_text_thickness": 0.15,
         "other_text_upright": false,
         "pads": {
-          "drill": 2.4,
-          "height": 4.4,
-          "width": 4.4
+          "drill": 0.0,
+          "height": 1.0,
+          "width": 0.6
         },
         "silk_line_width": 0.15,
         "silk_text_italic": false,
@@ -380,6 +380,7 @@
         "nets": [
           "+3v3",
           "+BATT",
+          "/BAT2SW",
           "GND",
           "VCC"
         ],
