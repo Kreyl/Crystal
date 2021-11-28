@@ -1651,6 +1651,23 @@ void Clk_t::PrintFreqs() {
             Clk.AHBFreqHz/1000000, Clk.APB1FreqHz/1000000, Clk.APB2FreqHz/1000000);
 }
 
+uint32_t Clk_t::GetTimInputFreq(TIM_TypeDef* ITmr) {
+    uint32_t InputFreq = 0;
+    // APB2
+    if(ANY_OF_4(ITmr, TIM1, TIM15, TIM16, TIM17)) {
+        uint32_t APB2prs = (RCC->CFGR & RCC_CFGR_PPRE2) >> 11;
+        if(APB2prs < 0b100) InputFreq = Clk.APB2FreqHz; // APB2CLK = HCLK / 1
+        else InputFreq = Clk.APB2FreqHz * 2;           // APB2CLK = HCLK / (not 1)
+    }
+    // APB1
+    else {
+        uint32_t APB1prs = (RCC->CFGR & RCC_CFGR_PPRE1) >> 8;
+        if(APB1prs < 0b100) InputFreq = Clk.APB1FreqHz; // APB1CLK = HCLK / 1
+        else  InputFreq = Clk.APB1FreqHz * 2;           // APB1CLK = HCLK / (not 1)
+    }
+    return InputFreq;
+}
+
 void Clk_t::SetCoreClk(CoreClk_t CoreClk) {
     EnablePrefetch();
     // Enable/disable HSE

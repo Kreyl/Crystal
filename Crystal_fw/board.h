@@ -43,21 +43,21 @@
 #define BTN3_PIN        GPIOB, 13, pudPullDown
 
 // LEDs
-#define LED1_R          { GPIOA,  1,  TIM2, 2, invNotInverted, omPushPull, 255 }
-#define LED1_G          { GPIOB,  0,  TIM3, 3, invNotInverted, omPushPull, 255 }
-#define LED1_B          { GPIOB,  1,  TIM3, 4, invNotInverted, omPushPull, 255 }
+#define LED1_R          { GPIOB,  0,  TIM3, 3, invNotInverted, omPushPull, 255 }
+#define LED1_G          { GPIOB,  1,  TIM3, 4, invNotInverted, omPushPull, 255 }
+#define LED1_B          { GPIOA,  1,  TIM2, 2, invNotInverted, omPushPull, 255 }
 
-#define LED2_R          { GPIOB, 10,  TIM2, 3, invNotInverted, omPushPull, 255 }
-#define LED2_G          { GPIOB, 11,  TIM2, 4, invNotInverted, omPushPull, 255 }
-#define LED2_B          { GPIOA,  8,  TIM1, 1, invNotInverted, omPushPull, 255 }
+#define LED2_R          { GPIOB, 11,  TIM2, 4, invNotInverted, omPushPull, 255 }
+#define LED2_G          { GPIOA,  8,  TIM1, 1, invNotInverted, omPushPull, 255 }
+#define LED2_B          { GPIOB, 10,  TIM2, 3, invNotInverted, omPushPull, 255 }
 
-#define LED3_R          { GPIOA,  9,  TIM1, 2, invNotInverted, omPushPull, 255 }
-#define LED3_G          { GPIOA, 10,  TIM1, 3, invNotInverted, omPushPull, 255 }
-#define LED3_B          { GPIOA, 11,  TIM1, 4, invNotInverted, omPushPull, 255 }
+#define LED3_R          { GPIOA, 10,  TIM1, 3, invNotInverted, omPushPull, 255 }
+#define LED3_G          { GPIOA, 11,  TIM1, 4, invNotInverted, omPushPull, 255 }
+#define LED3_B          { GPIOA,  9,  TIM1, 2, invNotInverted, omPushPull, 255 }
 
-#define LED4_R          { GPIOB,  5,  TIM3, 2, invNotInverted, omPushPull, 255 }
-#define LED4_G          { GPIOB,  8, TIM16, 1, invNotInverted, omPushPull, 255 }
-#define LED4_B          { GPIOB,  9, TIM17, 1, invNotInverted, omPushPull, 255 }
+#define LED4_R          { GPIOB,  8, TIM16, 1, invNotInverted, omPushPull, 255 }
+#define LED4_G          { GPIOB,  9, TIM17, 1, invNotInverted, omPushPull, 255 }
+#define LED4_B          { GPIOB,  5,  TIM3, 2, invNotInverted, omPushPull, 255 }
 
 // ADC
 #define ADC_BAT_EN      GPIOA, 2
@@ -114,9 +114,9 @@
 
 #if 1 // ========================== USART ======================================
 #define PRINTF_FLOAT_EN FALSE
-#define UART_TXBUF_SZ   512
-#define UART_RXBUF_SZ   128
-#define CMD_BUF_SZ      84
+#define UART_TXBUF_SZ   128
+#define UART_RXBUF_SZ   84
+#define CMD_BUF_SZ      64
 
 #define CMD_UART        USART1
 

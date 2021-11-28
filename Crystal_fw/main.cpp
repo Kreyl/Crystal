@@ -3,7 +3,7 @@
 #include "MsgQ.h"
 #include "uart.h"
 #include "shell.h"
-//#include "led.h"
+#include "led.h"
 //#include "buttons.h"
 //#include "Sequences.h"
 #endif
@@ -18,6 +18,13 @@ void ITask();
 
 //#define BATTERY_LOW_mv  3200
 //#define BATTERY_DEAD_mv 3300
+
+LedRGB_t Leds[4] = {
+        {LED1_R, LED1_G, LED1_B},
+        {LED2_R, LED2_G, LED2_B},
+        {LED3_R, LED3_G, LED3_B},
+        {LED4_R, LED4_G, LED4_B},
+};
 
 #endif
 
@@ -36,12 +43,12 @@ int main(void) {
     chSysInit();
     OsIsInitialized = true;
     EvtQMain.Init();
+#endif
 
     // ==== Init hardware ====
     Uart.Init();
-    // Remap pins: disable JTAG leaving SWD, USART1 at PB6/7
-    AFIO->MAPR = (0b010UL << 24) | AFIO_MAPR_USART1_REMAP;
-
+    // Remap pins: disable JTAG leaving SWD, T3C2 at PB5, T2C3&4 at PB10&11, USART1 at PB6/7
+    AFIO->MAPR = (0b010UL << 24) | (0b10UL << 10) | (0b10UL << 8) | AFIO_MAPR_USART1_REMAP;
     Printf("\r%S %S\r", APP_NAME, XSTRINGIFY(BUILD_TIME));
     Clk.PrintFreqs();
 //    // Check if IWDG frozen in standby
@@ -51,7 +58,14 @@ int main(void) {
 //        Flash::IwdgFrozeInStandby();
 //    }
 
-#endif
+    for(auto &Led : Leds) {
+        Led.Init();
+//        Led.SetColor(clGreen);
+//        chThdSleepMilliseconds(270);
+    }
+
+
+
 //    Buttons::Init();
     // Main cycle
     ITask();
@@ -62,11 +76,11 @@ void ITask() {
     while(true) {
         EvtMsg_t Msg = EvtQMain.Fetch(TIME_INFINITE);
         switch(Msg.ID) {
-//            case evtIdShellCmd:
-//                OnCmd((Shell_t*)Msg.Ptr);
-//                ((Shell_t*)Msg.Ptr)->SignalCmdProcessed();
-//                break;
-//
+            case evtIdShellCmd:
+                OnCmd((Shell_t*)Msg.Ptr);
+                ((Shell_t*)Msg.Ptr)->SignalCmdProcessed();
+                break;
+
 //            case evtIdPwrOffTimeout:
 //                Printf("TmrOff timeout\r");
 //                break;
@@ -181,6 +195,18 @@ void OnCmd(Shell_t *PShell) {
     if(PCmd->NameIs("Ping")) PShell->Ok();
     else if(PCmd->NameIs("Version")) PShell->Print("%S %S\r", APP_NAME, XSTRINGIFY(BUILD_TIME));
     else if(PCmd->NameIs("mem")) PrintMemoryInfo();
+
+    else if(PCmd->NameIs("Clr")) {
+        uint8_t N;
+        Color_t Clr;
+        if(PCmd->GetNext<uint8_t>(&N) == retvOk) {
+            if(PCmd->GetClrRGB(&Clr) == retvOk) {
+                Leds[N].SetColor(Clr);
+            }
+            else PShell->BadParam();
+        }
+        else PShell->BadParam();
+    }
 
 
     else PShell->CmdUnknown();
