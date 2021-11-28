@@ -20,11 +20,19 @@ void ITask();
 //#define BATTERY_LOW_mv  3200
 //#define BATTERY_DEAD_mv 3300
 
+#endif
+
+#if 1 // ======================== LEDs related =================================
 LedRGB_t Leds[4] = {
         {LED1_R, LED1_G, LED1_B},
         {LED2_R, LED2_G, LED2_B},
         {LED3_R, LED3_G, LED3_B},
         {LED4_R, LED4_G, LED4_B},
+};
+
+LedRGBChunk_t lsqOn[] = {
+        {csSetup, 600, clGreen},
+        {csEnd}
 };
 
 ColorHSV_t hsv(120, 100, 100);
@@ -34,6 +42,10 @@ void LedsSetAllHsv() {
     Color_t Clr;
     Clr = hsv.ToRGB();
     for(auto &Led : Leds) Led.SetColor(Clr);
+}
+
+void LedsStartSeq(LedRGBChunk_t *lsq) {
+    for(auto &Led : Leds) Led.StartOrRestart(lsq);
 }
 
 void LedsOff() { for(auto &Led : Leds) Led.Stop(); }
@@ -78,7 +90,10 @@ int main(void) {
     hsv.S = 100;
     hsv.V = 100;
 
-    LedsSetAllHsv();
+    // Set what loaded
+    lsqOn[0].Color = hsv.ToRGB();
+    LedsStartSeq(lsqOn);
+//    LedsSetAllHsv();
 
     SimpleSensors::Init();
     // Main cycle

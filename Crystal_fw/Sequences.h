@@ -232,55 +232,11 @@ const LedRGBChunk_t lsqFailure[] = {
         {csEnd}
 };
 
-const LedRGBChunk_t lsqBlinkB[] = {
-        {csSetup, 0, clBlue},
-        {csWait, 36},
-//        {csSetup, 0, clBlack},
-        {csSetup, 0, {0,4,0}},
+const LedRGBChunk_t lsqOff[] = {
+        {csSetup, 360, clBlack},
         {csEnd},
 };
 
-const LedRGBChunk_t lsqBlinkR[] = {
-        {csSetup, 0, clRed},
-        {csWait, 99},
-//        {csSetup, 0, clBlack},
-        {csSetup, 0, {0,4,0}},
-        {csEnd},
-};
-
-const LedRGBChunk_t lsqRx[] = {
-        {csSetup, 0, clBlue},
-        {csWait, 207},
-        {csSetup, 0, {0,7,0}},
-        {csEnd},
-};
-
-const LedRGBChunk_t lsqSearch[] = {
-        {csSetup, 0, clRed},
-        {csWait, 99},
-        {csSetup, 0, clBlack},
-        {csEnd},
-};
-
-// ==== Pill ====
-//const LedRGBChunk_t lsqPillCure[] = {
-//        {csSetup, 0, clGreen},
-//        {csWait, 999},
-//        {csSetup, 0, clBlack},
-//        {csEnd},
-//};
-//const LedRGBChunk_t lsqPillPanacea[] = {
-//        {csSetup, 0, clWhite},
-//        {csWait, 999},
-//        {csSetup, 0, clBlack},
-//        {csEnd},
-//};
-//const LedRGBChunk_t lsqPillBad[] = {
-//        {csSetup, 0, clRed},
-//        {csWait, 999},
-//        {csSetup, 0, clBlack},
-//        {csEnd},
-//};
 
 #endif
 
