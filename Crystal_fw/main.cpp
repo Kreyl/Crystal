@@ -6,6 +6,7 @@
 #include "led.h"
 #include "buttons.h"
 #include "Sequences.h"
+#include "SaveToFlash.h"
 #endif
 #if 1 // ======================== Variables & prototypes =======================
 // Forever
@@ -26,6 +27,16 @@ LedRGB_t Leds[4] = {
         {LED4_R, LED4_G, LED4_B},
 };
 
+ColorHSV_t hsv(120, 100, 100);
+TmrKL_t TmrSave {TIME_MS2I(3600), evtIdTimeToSave, tktOneShot};
+
+void LedsSetAllHsv() {
+    Color_t Clr;
+    Clr = hsv.ToRGB();
+    for(auto &Led : Leds) Led.SetColor(Clr);
+}
+
+void LedsOff() { for(auto &Led : Leds) Led.Stop(); }
 #endif
 
 int main(void) {
@@ -58,11 +69,16 @@ int main(void) {
 //        Flash::IwdgFrozeInStandby();
 //    }
 
-    for(auto &Led : Leds) {
-        Led.Init();
-        Led.StartOrRestart(lsqStart);
-        chThdSleepMilliseconds(99);
-    }
+    for(auto &Led : Leds) Led.Init();
+
+    // Load and check color
+    Flash::Load((void*)&hsv, sizeof(ColorHSV_t));
+    Printf("Saved clr: %u\r", hsv.H);
+    if(hsv.H > 360) hsv.H = 0;
+    hsv.S = 100;
+    hsv.V = 100;
+
+    LedsSetAllHsv();
 
     SimpleSensors::Init();
     // Main cycle
@@ -85,6 +101,25 @@ void ITask() {
 
             case evtIdButtons:
                 Printf("Btn %u %u\r", Msg.BtnEvtInfo.BtnID, Msg.BtnEvtInfo.Type);
+                if((Msg.BtnEvtInfo.BtnID == 1 or Msg.BtnEvtInfo.BtnID == 2) and Msg.BtnEvtInfo.Type != beLongPress) {
+                    if(Msg.BtnEvtInfo.BtnID == 1) {
+                        if(hsv.H < 360) hsv.H++;
+                        else hsv.H = 0;
+                    }
+                    else if(Msg.BtnEvtInfo.BtnID == 2) {
+                        if(hsv.H > 0) hsv.H--;
+                        else hsv.H = 360;
+                    }
+                    LedsSetAllHsv();
+                    TmrSave.StartOrRestart();
+                }
+                break;
+
+            case evtIdTimeToSave:
+                Flash::Save((uint32_t*)&hsv, sizeof(ColorHSV_t));
+                LedsOff();
+                chThdSleepMilliseconds(153);
+                LedsSetAllHsv();
                 break;
 
                 /*
@@ -176,7 +211,6 @@ void OnCmd(Shell_t *PShell) {
     // Handle command
     if(PCmd->NameIs("Ping")) PShell->Ok();
     else if(PCmd->NameIs("Version")) PShell->Print("%S %S\r", APP_NAME, XSTRINGIFY(BUILD_TIME));
-    else if(PCmd->NameIs("mem")) PrintMemoryInfo();
 
     else if(PCmd->NameIs("Clr")) {
         uint8_t N;

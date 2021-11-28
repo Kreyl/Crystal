@@ -14,7 +14,7 @@ enum EvtMsgId_t {
     evtIdShellCmd,
     evtIdEverySecond,
 
-    // Misc periph
     evtIdButtons,
+    evtIdTimeToSave,
     evtIdPwrOffTimeout,
 };
