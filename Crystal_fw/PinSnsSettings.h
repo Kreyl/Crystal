@@ -24,11 +24,6 @@ const PinSns_t PinSns[] = {
         {BTN1_PIN, pudPullDown, ProcessButtons},
         {BTN2_PIN, ProcessButtons},
         {BTN3_PIN, ProcessButtons},
-        // Usb
-//        {PIN_5V_USB, pudPullDown, ProcessUSB},
-
-        // IsCharging
-//        {IS_CHARGING_PIN, pudPullUp, ProcessIsCharging},
 };
 #define PIN_SNS_CNT     countof(PinSns)
 

@@ -4,8 +4,8 @@
 #include "uart.h"
 #include "shell.h"
 #include "led.h"
-//#include "buttons.h"
-//#include "Sequences.h"
+#include "buttons.h"
+#include "Sequences.h"
 #endif
 #if 1 // ======================== Variables & prototypes =======================
 // Forever
@@ -60,13 +60,11 @@ int main(void) {
 
     for(auto &Led : Leds) {
         Led.Init();
-//        Led.SetColor(clGreen);
-//        chThdSleepMilliseconds(270);
+        Led.StartOrRestart(lsqStart);
+        chThdSleepMilliseconds(99);
     }
 
-
-
-//    Buttons::Init();
+    SimpleSensors::Init();
     // Main cycle
     ITask();
 }
@@ -84,27 +82,11 @@ void ITask() {
 //            case evtIdPwrOffTimeout:
 //                Printf("TmrOff timeout\r");
 //                break;
-/*
+
             case evtIdButtons:
-                Printf("Btn %u %u\r", Msg.BtnInfo.ID, Msg.BtnInfo.Evt);
-                if(Msg.BtnInfo.Evt == bePress) {
-                    Resume();
-                    IsPlayingIntro = false;
-                    AuPlayer.FadeOut();
-                    Songs[Msg.BtnInfo.ID - 1].Play();
-                }
-                else if(Msg.BtnInfo.Evt == beRelease) {
-                    if(IsPlayingIntro) IsPlayingIntro = false;
-                    else if(Buttons::AreAllIdle()) AuPlayer.FadeOut();
-                }
-                else if(Msg.BtnInfo.Evt == beCombo) {
-                    Resume();
-                    IsPlayingIntro = true;
-                    MustSleep = true;
-                    AuPlayer.Play("Sleep.wav", spmSingle);
-                }
+                Printf("Btn %u %u\r", Msg.BtnEvtInfo.BtnID, Msg.BtnEvtInfo.Type);
                 break;
-*/
+
                 /*
             case evtIdEverySecond:
 //                Printf("Second\r");
@@ -201,7 +183,8 @@ void OnCmd(Shell_t *PShell) {
         Color_t Clr;
         if(PCmd->GetNext<uint8_t>(&N) == retvOk) {
             if(PCmd->GetClrRGB(&Clr) == retvOk) {
-                Leds[N].SetColor(Clr);
+                if(N > 3) for(auto &Led : Leds) Led.SetColor(Clr);
+                else Leds[N].SetColor(Clr);
             }
             else PShell->BadParam();
         }

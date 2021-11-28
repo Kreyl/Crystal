@@ -1,7 +1,7 @@
 /*
  * Sequences.h
  *
- *  Created on: 09 ÿíâ. 2015 ã.
+ *  Created on: 09 ï¿½ï¿½ï¿½. 2015 ï¿½.
  *      Author: Kreyl
  */
 
@@ -206,15 +206,14 @@ const LedChunk_t lsqBlinkGreenX2[] = {
 //        {csEnd}
 //};
 
+#define SMOOTH  108
 const LedRGBChunk_t lsqStart[] = {
-        {csSetup, 0, clRed},
-        {csWait, 207},
-        {csSetup, 0, clGreen},
-        {csWait, 207},
-        {csSetup, 0, clBlue},
-        {csWait, 207},
-//        {csSetup, 0, clBlack},
-        {csSetup, 0, {0,4,0}},
+        {csSetup, SMOOTH, clRed},
+        {csSetup, SMOOTH, clBlack},
+        {csSetup, SMOOTH, clGreen},
+        {csSetup, SMOOTH, clBlack},
+        {csSetup, SMOOTH, clBlue},
+        {csSetup, SMOOTH, clBlack},
         {csEnd},
 };
 

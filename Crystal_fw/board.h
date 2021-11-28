@@ -27,8 +27,8 @@
 
 //  Periphery
 #define I2C1_ENABLED            FALSE
-#define I2C2_ENABLED            FALSE
-#define I2C3_ENABLED            FALSE
+#define SIMPLESENSORS_ENABLED   TRUE
+#define BUTTONS_ENABLED         TRUE
 
 #define ADC_REQUIRED            FALSE
 #define STM32_DMA_REQUIRED      TRUE    // Leave this macro name for OS
@@ -38,7 +38,7 @@
 #define INDIVIDUAL_EXTI_IRQ_REQUIRED    FALSE
 
 // Buttons
-#define BTN1_PIN        GPIOA,  0, pudPullDown
+#define BTN1_PIN        GPIOA,  0
 #define BTN2_PIN        GPIOB, 12, pudPullDown
 #define BTN3_PIN        GPIOB, 13, pudPullDown
 
