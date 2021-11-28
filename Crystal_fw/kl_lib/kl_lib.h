@@ -1728,6 +1728,13 @@ enum APBDiv_t {apbDiv1=0b000, apbDiv2=0b100, apbDiv4=0b101, apbDiv8=0b110, apbDi
 
 #define HSI_FREQ_HZ         8000000    // Freq of internal generator, not adjustable
 
+enum ADCDiv_t {
+    adcDiv2=RCC_CFGR_ADCPRE_DIV2,
+    adcDiv4=RCC_CFGR_ADCPRE_DIV4,
+    adcDiv6=RCC_CFGR_ADCPRE_DIV6,
+    adcDiv8=RCC_CFGR_ADCPRE_DIV8
+};
+
 class Clk_t {
 private:
     uint8_t EnableHSE();
@@ -1752,6 +1759,14 @@ public:
         if(Src == pllSrcHSIdiv2) RCC->CFGR &= ~RCC_CFGR_PLLSRC;
         else RCC->CFGR |= RCC_CFGR_PLLSRC;
     }
+
+    void SetupAdcClk(ADCDiv_t ADCDiv) {
+        uint32_t tmp = RCC->CFGR;
+        tmp &= ~RCC_CFGR_ADCPRE;
+        tmp |= (uint32_t)ADCDiv;
+        RCC->CFGR = tmp;
+    }
+
     void UpdateFreqValues();
     //void UpdateSysTick() { SysTick->LOAD = AHBFreqHz / CH_FREQUENCY - 1; }
     void SetupFlashLatency(uint8_t AHBClk_MHz);

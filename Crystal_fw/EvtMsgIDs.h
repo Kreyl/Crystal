@@ -16,5 +16,6 @@ enum EvtMsgId_t {
 
     evtIdButtons,
     evtIdTimeToSave,
+    evtIdAdcRslt,
     evtIdPwrOffTimeout,
 };

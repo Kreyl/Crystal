@@ -7,6 +7,8 @@
 #include "buttons.h"
 #include "Sequences.h"
 #include "SaveToFlash.h"
+#include "adc_f100.h"
+#include "battery_consts.h"
 #endif
 #if 1 // ======================== Variables & prototypes =======================
 // Forever
@@ -16,10 +18,13 @@ static const UartParams_t CmdUartParams(115200, CMD_UART_PARAMS);
 CmdUart_t Uart{&CmdUartParams};
 void OnCmd(Shell_t *PShell);
 void ITask();
+//IWDG_t Iwdg;
+#endif
 
-//#define BATTERY_LOW_mv  3200
-//#define BATTERY_DEAD_mv 3300
-
+#if 1 // === ADC ===
+extern Adc_t Adc;
+void OnMeasurementDone();
+TmrKL_t TmrOneS {TIME_MS2I(999), evtIdEverySecond, tktPeriodic};
 #endif
 
 #if 1 // ======================== LEDs related =================================
@@ -39,8 +44,7 @@ ColorHSV_t hsv(120, 100, 100);
 TmrKL_t TmrSave {TIME_MS2I(3600), evtIdTimeToSave, tktOneShot};
 
 void LedsSetAllHsv() {
-    Color_t Clr;
-    Clr = hsv.ToRGB();
+    Color_t Clr = hsv.ToRGB();
     for(auto &Led : Leds) Led.SetColor(Clr);
 }
 
@@ -95,10 +99,18 @@ int main(void) {
     LedsStartSeq(lsqOn);
 //    LedsSetAllHsv();
 
+    PinSetupAnalog(ADC_BAT_PIN);
+    PinSetupOut(ADC_BAT_EN, omPushPull);
+    PinSetHi(ADC_BAT_EN);
+    Adc.Init();
+    TmrOneS.StartOrRestart();
+
     SimpleSensors::Init();
     // Main cycle
     ITask();
 }
+
+uint32_t rslt = 0;
 
 __noreturn
 void ITask() {
@@ -109,10 +121,6 @@ void ITask() {
                 OnCmd((Shell_t*)Msg.Ptr);
                 ((Shell_t*)Msg.Ptr)->SignalCmdProcessed();
                 break;
-
-//            case evtIdPwrOffTimeout:
-//                Printf("TmrOff timeout\r");
-//                break;
 
             case evtIdButtons:
                 Printf("Btn %u %u\r", Msg.BtnEvtInfo.BtnID, Msg.BtnEvtInfo.Type);
@@ -125,8 +133,12 @@ void ITask() {
                         if(hsv.H > 0) hsv.H--;
                         else hsv.H = 360;
                     }
+                    lsqOn[0].Color = hsv.ToRGB();
                     LedsSetAllHsv();
                     TmrSave.StartOrRestart();
+                }
+                else if(Msg.BtnEvtInfo.BtnID == 0) {
+                    if(Msg.BtnEvtInfo.Type == beShortPress) Adc.StartMeasurement();
                 }
                 break;
 
@@ -137,28 +149,39 @@ void ITask() {
                 LedsSetAllHsv();
                 break;
 
-                /*
+
             case evtIdEverySecond:
 //                Printf("Second\r");
+
 //                Iwdg::Reload();
-                // Check battery
-                if(!IsStandby) {
-                    uint32_t Battery_mV;
-                    if(Codec.GetBatteryVmv(&Battery_mV) == retvOk) {
-//                    Printf("%u\r", Battery_mV);
-                        if(Battery_mV < BATTERY_DEAD_mv) {
-                            Printf("Discharged: %u\r", Battery_mV);
-                            EnterSleep();
-                        }
-                    }
-                }
                 break;
-                */
+
+            case evtIdAdcRslt: OnMeasurementDone(); break;
 
             default: break;
         } // switch
     } // while true
 }
+
+void OnMeasurementDone() {
+//    Printf("%u %u %u\r", Adc.GetResult(0), Adc.GetResult(1), Adc.Adc2mV(Adc.GetResult(0), Adc.GetResult(1)));
+    // Calculate voltage
+    uint32_t VBat = 2 * Adc.Adc2mV(Adc.GetResult(0), Adc.GetResult(1)); // *2 because of resistor divider
+    uint8_t Percent = mV2PercentAlkaline(VBat);
+    Printf("VBat: %umV; Percent: %u\r", VBat, Percent);
+    ColorHSV_t tmp = hsv;
+    LedsOff();
+    chThdSleepMilliseconds(108);
+    if     (Percent <= 20) hsv = {0,   100, 100};
+    else if(Percent <  80) hsv = {60,  100, 100};
+    else                   hsv = {120, 100, 100};
+    LedsSetAllHsv();
+    chThdSleepMilliseconds(1530);
+    LedsOff();
+    hsv = tmp;
+    LedsStartSeq(lsqOn);
+}
+
 /*
 void Resume() {
     if(!IsStandby) return;

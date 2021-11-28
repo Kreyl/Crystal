@@ -10,6 +10,13 @@
 // ==== General ====
 #define APP_NAME            "Crystal"
 
+#ifndef TRUE
+#define TRUE    1
+#endif
+#ifndef FALSE
+#define FALSE   0
+#endif
+
 // Version of PCB
 #define PCB_VER                 1
 
@@ -30,7 +37,7 @@
 #define SIMPLESENSORS_ENABLED   TRUE
 #define BUTTONS_ENABLED         TRUE
 
-#define ADC_REQUIRED            FALSE
+#define ADC_REQUIRED            TRUE
 #define STM32_DMA_REQUIRED      TRUE    // Leave this macro name for OS
 
 #if 1 // ========================== GPIO =======================================
@@ -81,12 +88,13 @@
 #define ADC_CLK_DIVIDER		adcDiv2
 
 // ADC channels
-#define ADC_BATTERY_CHNL 	14
-// ADC_VREFINT_CHNL
+#define ADC_BATTERY_CHNL 	3
+#define ADC_VREFINT_CHNL    17 // const, see RefMan p.161
 #define ADC_CHANNELS        { ADC_BATTERY_CHNL, ADC_VREFINT_CHNL }
 #define ADC_CHANNEL_CNT     2   // Do not use countof(AdcChannels) as preprocessor does not know what is countof => cannot check
-#define ADC_SAMPLE_TIME     ast24d5Cycles
-#define ADC_OVERSAMPLING_RATIO  64   // 1 (no oversampling), 2, 4, 8, 16, 32, 64, 128, 256
+#define ADC_SAMPLE_TIME     ADC_SampleTime_55_5Cycles
+#define ADC_SAMPLE_CNT      8   // How many times to measure every channel
+#define ADC_SEQ_LEN         (ADC_SAMPLE_CNT * ADC_CHANNEL_CNT)
 #endif
 
 #if 1 // =========================== DMA =======================================
