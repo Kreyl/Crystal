@@ -1366,11 +1366,9 @@ static inline void EnterStandby() {
     __WFI();
 }
 
-#if defined STM32F2XX
+#if defined STM32F2XX || defined STM32F1XX
 static inline void EnableWakeupPin()  { PWR->CSR |=  PWR_CSR_EWUP; }
 static inline void DisableWakeupPin() { PWR->CSR &= ~PWR_CSR_EWUP; }
-#elif defined STM32F1XX
-// Not implemented
 #elif defined STM32F7XX
 
 #else

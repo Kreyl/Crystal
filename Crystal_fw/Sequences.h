@@ -232,12 +232,6 @@ const LedRGBChunk_t lsqFailure[] = {
         {csEnd}
 };
 
-const LedRGBChunk_t lsqOff[] = {
-        {csSetup, 360, clBlack},
-        {csEnd},
-};
-
-
 #endif
 
 #if 0 // =========================== LED Smooth ================================

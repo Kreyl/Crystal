@@ -1,7 +1,7 @@
 /*
  * led_rgb.h
  *
- *  Created on: 31 авг. 2014 г.
+ *  Created on: 31 пїЅпїЅпїЅ. 2014 пїЅ.
  *      Author: Kreyl
  */
 

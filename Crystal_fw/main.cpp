@@ -3,9 +3,9 @@
 #include "MsgQ.h"
 #include "uart.h"
 #include "shell.h"
-#include "led.h"
+#include "CrystalLed.h"
+#include "ChunkTypes.h"
 #include "buttons.h"
-#include "Sequences.h"
 #include "SaveToFlash.h"
 #include "adc_f100.h"
 #include "battery_consts.h"
@@ -19,6 +19,11 @@ CmdUart_t Uart{&CmdUartParams};
 void OnCmd(Shell_t *PShell);
 void ITask();
 //IWDG_t Iwdg;
+
+bool Btn1IsPressed() { return PinIsHi(BTN1_PIN); }
+static void EnterSleepNow();
+static void EnterSleep();
+bool IsEnteringSleep = false;
 #endif
 
 #if 1 // === ADC ===
@@ -28,42 +33,41 @@ TmrKL_t TmrOneS {TIME_MS2I(999), evtIdEverySecond, tktPeriodic};
 #endif
 
 #if 1 // ======================== LEDs related =================================
-LedRGB_t Leds[4] = {
-        {LED1_R, LED1_G, LED1_B},
-        {LED2_R, LED2_G, LED2_B},
-        {LED3_R, LED3_G, LED3_B},
-        {LED4_R, LED4_G, LED4_B},
-};
-
 LedRGBChunk_t lsqOn[] = {
         {csSetup, 600, clGreen},
         {csEnd}
 };
 
+LedRGBChunk_t lsqOff[] = {
+        {csSetup, 360, clBlack},
+        {csEnd},
+};
+
 ColorHSV_t hsv(120, 100, 100);
 TmrKL_t TmrSave {TIME_MS2I(3600), evtIdTimeToSave, tktOneShot};
-
-void LedsSetAllHsv() {
-    Color_t Clr = hsv.ToRGB();
-    for(auto &Led : Leds) Led.SetColor(Clr);
-}
-
-void LedsStartSeq(LedRGBChunk_t *lsq) {
-    for(auto &Led : Leds) Led.StartOrRestart(lsq);
-}
-
-void LedsOff() { for(auto &Led : Leds) Led.Stop(); }
 #endif
 
 int main(void) {
+#if 1 // ==== Get source of wakeup ====
+    rccEnablePWRInterface(FALSE);
+    if(PWR->CSR & PWR_CSR_WUF) { // Wakeup occured
+        // Is it button?
+        PinSetupInput(BTN1_PIN, pudPullDown);
+        if(Btn1IsPressed()) {
+            // Check if pressed long enough
+            for(uint32_t i=0; i<540000; i++) {
+                // Go sleep if btn released too fast
+                if(!Btn1IsPressed()) EnterSleepNow();
+            }
+            // Btn was keeped in pressed state long enough, proceed with powerOn
+        }
+    }
+#endif
+
 #if 1 // ==== Iwdg, Clk, Os, EvtQ, Uart ====
     // Start Watchdog. Will reset in main thread by periodic 1 sec events.
 //    Iwdg::InitAndStart(4500);
 //    Iwdg::DisableInDebug();
-//    // Setup clock frequency
-//    Clk.SetCoreClk(cclk48MHz);
-//    // 48MHz clock
-//    Clk.SetupSai1Qas48MhzSrc();
     Clk.UpdateFreqValues();
     // Init OS
     halInit();
@@ -85,27 +89,31 @@ int main(void) {
 //        Flash::IwdgFrozeInStandby();
 //    }
 
-    for(auto &Led : Leds) Led.Init();
-
     // Load and check color
     Flash::Load((void*)&hsv, sizeof(ColorHSV_t));
     Printf("Saved clr: %u\r", hsv.H);
-    if(hsv.H > 360) hsv.H = 0;
+    if(hsv.H > 360) hsv.H = 135;
     hsv.S = 100;
     hsv.V = 100;
 
+    // LEDs
+    Leds::Init();
     // Set what loaded
     lsqOn[0].Color = hsv.ToRGB();
-    LedsStartSeq(lsqOn);
-//    LedsSetAllHsv();
+    Leds::StartSeq(lsqOn);
 
+    // Wait until main button released
+    while(Btn1IsPressed()) { chThdSleepMilliseconds(63); }
+    SimpleSensors::Init(); // Buttons
+
+    // Battery measurement
     PinSetupAnalog(ADC_BAT_PIN);
     PinSetupOut(ADC_BAT_EN, omPushPull);
     PinSetHi(ADC_BAT_EN);
     Adc.Init();
+
     TmrOneS.StartOrRestart();
 
-    SimpleSensors::Init();
     // Main cycle
     ITask();
 }
@@ -124,6 +132,20 @@ void ITask() {
 
             case evtIdButtons:
                 Printf("Btn %u %u\r", Msg.BtnEvtInfo.BtnID, Msg.BtnEvtInfo.Type);
+                // Main button == BTN1
+                if(Msg.BtnEvtInfo.BtnID == 0) {
+                    if(Msg.BtnEvtInfo.Type == beLongPress) {
+                        IsEnteringSleep = !IsEnteringSleep;
+                        if(IsEnteringSleep) {
+                            Leds::StartSeq(lsqOff);
+                        }
+                        else Leds::StartSeq(lsqOn);
+                    }
+                    else if(Msg.BtnEvtInfo.Type == beRelease) {
+                        if(!IsEnteringSleep) Adc.StartMeasurement();
+                    }
+                }
+                // Right / Left buttons == BTN2 & 3
                 if((Msg.BtnEvtInfo.BtnID == 1 or Msg.BtnEvtInfo.BtnID == 2) and Msg.BtnEvtInfo.Type != beLongPress) {
                     if(Msg.BtnEvtInfo.BtnID == 1) {
                         if(hsv.H < 360) hsv.H++;
@@ -134,26 +156,23 @@ void ITask() {
                         else hsv.H = 360;
                     }
                     lsqOn[0].Color = hsv.ToRGB();
-                    LedsSetAllHsv();
+                    Leds::SetAllHsv(hsv);
                     TmrSave.StartOrRestart();
-                }
-                else if(Msg.BtnEvtInfo.BtnID == 0) {
-                    if(Msg.BtnEvtInfo.Type == beShortPress) Adc.StartMeasurement();
                 }
                 break;
 
             case evtIdTimeToSave:
                 Flash::Save((uint32_t*)&hsv, sizeof(ColorHSV_t));
-                LedsOff();
+                Leds::Off();
                 chThdSleepMilliseconds(153);
-                LedsSetAllHsv();
+                Leds::SetAllHsv(hsv);
                 break;
 
 
             case evtIdEverySecond:
 //                Printf("Second\r");
-
 //                Iwdg::Reload();
+                if(IsEnteringSleep and Leds::AreOff() and !Btn1IsPressed()) EnterSleep();
                 break;
 
             case evtIdAdcRslt: OnMeasurementDone(); break;
@@ -170,68 +189,16 @@ void OnMeasurementDone() {
     uint8_t Percent = mV2PercentAlkaline(VBat);
     Printf("VBat: %umV; Percent: %u\r", VBat, Percent);
     ColorHSV_t tmp = hsv;
-    LedsOff();
+    Leds::Off();
     chThdSleepMilliseconds(108);
     if     (Percent <= 20) hsv = {0,   100, 100};
     else if(Percent <  80) hsv = {60,  100, 100};
     else                   hsv = {120, 100, 100};
-    LedsSetAllHsv();
+    Leds::SetAllHsv(hsv);
     chThdSleepMilliseconds(1530);
-    LedsOff();
+    Leds::Off();
     hsv = tmp;
-    LedsStartSeq(lsqOn);
-}
-
-/*
-void Resume() {
-    if(!IsStandby) return;
-    Printf("Resume\r");
-    // Clock
-    Clk.SetCoreClk(cclk48MHz);
-    Clk.SetupSai1Qas48MhzSrc();
-    Clk.UpdateFreqValues();
-    Clk.PrintFreqs();
-    // Sound
-    Codec.Init();
-    Codec.SetSpeakerVolume(-96);    // To remove speaker pop at power on
-    Codec.DisableHeadphones();
-    Codec.EnableSpeakerMono();
-    Codec.SetupMonoStereo(Stereo);  // For wav player
-    Codec.SetupSampleRate(22050); // Just default, will be replaced when changed
-    Codec.SetMasterVolume(5); // 12 is max
-    Codec.SetSpeakerVolume(0); // 0 is max
-
-    IsStandby = false;
-}
-
-void Standby() {
-    Printf("Standby\r");
-    // Sound
-    Codec.Deinit();
-    // Clock
-    Clk.SwitchToMSI();
-    Clk.DisablePLL();
-    Clk.DisableSai1();
-
-    Clk.UpdateFreqValues();
-    Clk.PrintFreqs();
-    IsStandby = true;
-}
-
-void EnterSleepNow() {
-    // Enable inner pull-ups
-//    PWR->PUCRC |= PWR_PUCRC_PC13;
-    // Enable inner pull-downs
-    PWR->PDCRA |= PWR_PDCRA_PA0 | PWR_PDCRA_PA2;
-//    PWR->PDCRC |= PWR_PDCRC_PC13;
-    // Apply PullUps and PullDowns
-    PWR->CR3 |= PWR_CR3_APC;
-    // Enable wake-up srcs
-    Sleep::EnableWakeup1Pin(rfRising); // Btn1
-//    Sleep::EnableWakeup2Pin(rfRising); // Btn2
-    Sleep::EnableWakeup4Pin(rfRising); // USB
-    Sleep::ClearWUFFlags();
-    Sleep::EnterStandby();
+    Leds::StartSeq(lsqOn);
 }
 
 void EnterSleep() {
@@ -241,7 +208,11 @@ void EnterSleep() {
     EnterSleepNow();
     chSysUnlock();
 }
-*/
+
+void EnterSleepNow() {
+    Sleep::EnableWakeupPin(); // Btn0
+    Sleep::EnterStandby();
+}
 
 #if 1 // ======================= Command processing ============================
 void OnCmd(Shell_t *PShell) {
@@ -251,16 +222,16 @@ void OnCmd(Shell_t *PShell) {
     else if(PCmd->NameIs("Version")) PShell->Print("%S %S\r", APP_NAME, XSTRINGIFY(BUILD_TIME));
 
     else if(PCmd->NameIs("Clr")) {
-        uint8_t N;
-        Color_t Clr;
-        if(PCmd->GetNext<uint8_t>(&N) == retvOk) {
-            if(PCmd->GetClrRGB(&Clr) == retvOk) {
-                if(N > 3) for(auto &Led : Leds) Led.SetColor(Clr);
-                else Leds[N].SetColor(Clr);
-            }
-            else PShell->BadParam();
-        }
-        else PShell->BadParam();
+//        uint8_t N;
+//        Color_t Clr;
+//        if(PCmd->GetNext<uint8_t>(&N) == retvOk) {
+//            if(PCmd->GetClrRGB(&Clr) == retvOk) {
+//                if(N > 3) for(auto &Led : Leds) Led.SetColor(Clr);
+//                else Leds[N].SetColor(Clr);
+//            }
+//            else PShell->BadParam();
+//        }
+//        else PShell->BadParam();
     }
 
 
