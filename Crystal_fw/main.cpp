@@ -45,6 +45,7 @@ LedRGBChunk_t lsqOff[] = {
 
 ColorHSV_t hsv(120, 100, 100);
 TmrKL_t TmrSave {TIME_MS2I(3600), evtIdTimeToSave, tktOneShot};
+CrystalLed_t Leds;
 #endif
 
 int main(void) {
@@ -97,10 +98,10 @@ int main(void) {
     hsv.V = 100;
 
     // LEDs
-    Leds::Init();
+    Leds.Init();
     // Set what loaded
     lsqOn[0].Color = hsv.ToRGB();
-    Leds::StartSeq(lsqOn);
+    Leds.StartOrRestart(lsqOn);
 
     // Wait until main button released
     while(Btn1IsPressed()) { chThdSleepMilliseconds(63); }
@@ -137,9 +138,9 @@ void ITask() {
                     if(Msg.BtnEvtInfo.Type == beLongPress) {
                         IsEnteringSleep = !IsEnteringSleep;
                         if(IsEnteringSleep) {
-                            Leds::StartSeq(lsqOff);
+                            Leds.StartOrRestart(lsqOff);
                         }
-                        else Leds::StartSeq(lsqOn);
+                        else Leds.StartOrRestart(lsqOn);
                     }
                     else if(Msg.BtnEvtInfo.Type == beRelease) {
                         if(!IsEnteringSleep) Adc.StartMeasurement();
@@ -156,23 +157,23 @@ void ITask() {
                         else hsv.H = 360;
                     }
                     lsqOn[0].Color = hsv.ToRGB();
-                    Leds::SetAllHsv(hsv);
+                    Leds.SetAllHsv(hsv);
                     TmrSave.StartOrRestart();
                 }
                 break;
 
             case evtIdTimeToSave:
                 Flash::Save((uint32_t*)&hsv, sizeof(ColorHSV_t));
-                Leds::Off();
+                Leds.Stop();
                 chThdSleepMilliseconds(153);
-                Leds::SetAllHsv(hsv);
+                Leds.SetAllHsv(hsv);
                 break;
 
 
             case evtIdEverySecond:
 //                Printf("Second\r");
 //                Iwdg::Reload();
-                if(IsEnteringSleep and Leds::AreOff() and !Btn1IsPressed()) EnterSleep();
+                if(IsEnteringSleep and Leds.IsOff() and !Btn1IsPressed()) EnterSleep();
                 break;
 
             case evtIdAdcRslt: OnMeasurementDone(); break;
@@ -189,16 +190,16 @@ void OnMeasurementDone() {
     uint8_t Percent = mV2PercentAlkaline(VBat);
     Printf("VBat: %umV; Percent: %u\r", VBat, Percent);
     ColorHSV_t tmp = hsv;
-    Leds::Off();
+    Leds.Stop();
     chThdSleepMilliseconds(108);
     if     (Percent <= 20) hsv = {0,   100, 100};
     else if(Percent <  80) hsv = {60,  100, 100};
     else                   hsv = {120, 100, 100};
-    Leds::SetAllHsv(hsv);
+    Leds.SetAllHsv(hsv);
     chThdSleepMilliseconds(1530);
-    Leds::Off();
+    Leds.Stop();
     hsv = tmp;
-    Leds::StartSeq(lsqOn);
+    Leds.StartOrRestart(lsqOn);
 }
 
 void EnterSleep() {
