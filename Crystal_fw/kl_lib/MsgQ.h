@@ -11,7 +11,6 @@
 #include "ch.h"
 #include "kl_lib.h"
 #include "EvtMsgIDs.h"
-//#include "board.h"
 #if BUTTONS_ENABLED
 #include "buttons.h"
 #endif
@@ -54,7 +53,12 @@ union EvtMsg_t {
         union {
             void* Ptr;
             struct {
-                int32_t Value;
+                union {
+                    int32_t Value;
+                    struct {
+                        uint8_t R, G, B, W;
+                    }  __attribute__((__packed__));
+                }  __attribute__((__packed__));
                 uint8_t ValueID;
             } __attribute__((__packed__));
 //            uint8_t b[EMSG_DATA8_CNT];

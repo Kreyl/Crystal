@@ -9,6 +9,7 @@
 #include "SaveToFlash.h"
 #include "adc_f100.h"
 #include "battery_consts.h"
+#include "radio_lvl1.h"
 #endif
 #if 1 // ======================== Variables & prototypes =======================
 // Forever
@@ -113,13 +114,13 @@ int main(void) {
     PinSetHi(ADC_BAT_EN);
     Adc.Init();
 
+    Radio.Init();
+
     TmrOneS.StartOrRestart();
 
     // Main cycle
     ITask();
 }
-
-uint32_t rslt = 0;
 
 __noreturn
 void ITask() {
@@ -169,6 +170,10 @@ void ITask() {
                 Leds.SetAllHsv(hsv);
                 break;
 
+            case evtIdRadioCmd:
+                lsqOn[0].Color.FromRGB(Msg.R, Msg.G, Msg.B);
+                Leds.SetColor(lsqOn[0].Color);
+                break;
 
             case evtIdEverySecond:
 //                Printf("Second\r");

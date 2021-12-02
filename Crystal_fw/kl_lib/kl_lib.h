@@ -1222,6 +1222,12 @@ public:
 #ifdef GPIOI
         else if(PGpio == GPIOI) SYSCFG->EXTICR[Indx] |= 8UL << Offset;
 #endif
+#else
+        // GPIOA requires all zeroes => nothing to do in this case
+        if     (PGpio == GPIOB) AFIO->EXTICR[Indx] |= 1UL << Offset;
+        else if(PGpio == GPIOC) AFIO->EXTICR[Indx] |= 2UL << Offset;
+        else if(PGpio == GPIOD) AFIO->EXTICR[Indx] |= 3UL << Offset;
+        else if(PGpio == GPIOE) AFIO->EXTICR[Indx] |= 4UL << Offset;
 #endif
         // Configure EXTI line
         uint32_t IrqMsk = 1 << PinN;

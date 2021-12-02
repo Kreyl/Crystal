@@ -75,6 +75,9 @@
 #define UART_TX_PIN     6
 #define UART_RX_PIN     7
 
+// Radio: SPI, PGpio, Sck, Miso, Mosi, Cs, Gdo0
+#define CC_Setup0       SPI1, GPIOA, 5,6,7, GPIOA,4, GPIOB,2
+
 #endif // GPIO
 
 #if 1 // =========================== I2C =======================================

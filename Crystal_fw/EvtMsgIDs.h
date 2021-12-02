@@ -18,4 +18,6 @@ enum EvtMsgId_t {
     evtIdTimeToSave,
     evtIdAdcRslt,
     evtIdPwrOffTimeout,
+
+    evtIdRadioCmd
 };
