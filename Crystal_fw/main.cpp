@@ -193,7 +193,7 @@ void OnMeasurementDone() {
     Leds.Stop();
     chThdSleepMilliseconds(108);
     if     (Percent <= 20) hsv = {0,   100, 100};
-    else if(Percent <  80) hsv = {60,  100, 100};
+    else if(Percent <  80) hsv = {30,  100, 100};
     else                   hsv = {120, 100, 100};
     Leds.SetAllHsv(hsv);
     chThdSleepMilliseconds(1530);
