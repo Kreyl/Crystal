@@ -172,7 +172,7 @@ void ITask() {
 
             case evtIdRadioCmd:
                 lsqOn[0].Color.FromRGB(Msg.R, Msg.G, Msg.B);
-                Leds.SetColor(lsqOn[0].Color);
+                Leds.StartOrRestart(lsqOn);
                 break;
 
             case evtIdEverySecond:
