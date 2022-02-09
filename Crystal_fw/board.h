@@ -8,7 +8,7 @@
 #pragma once
 
 // ==== General ====
-#define APP_NAME            "Crystal"
+#define APP_NAME            "CrystalTimer"
 
 #ifndef TRUE
 #define TRUE    1

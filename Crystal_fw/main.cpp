@@ -21,51 +21,40 @@ void OnCmd(Shell_t *PShell);
 void ITask();
 //IWDG_t Iwdg;
 
-bool Btn1IsPressed() { return PinIsHi(BTN1_PIN); }
-static void EnterSleepNow();
-static void EnterSleep();
-bool IsEnteringSleep = false;
 #endif
 
 #if 1 // === ADC ===
 extern Adc_t Adc;
 void OnMeasurementDone();
 TmrKL_t TmrOneS {TIME_MS2I(999), evtIdEverySecond, tktPeriodic};
+uint32_t TimeS = 0;
 #endif
 
 #if 1 // ======================== LEDs related =================================
-LedRGBChunk_t lsqOn[] = {
-        {csSetup, 600, clGreen},
+#define S_IN_MINUTE     60UL
+#define SMOOTH          720UL
+LedRGBChunk_t lsqGreen[] = {
+        {csSetup, SMOOTH, clGreen},
+        {csEnd}
+};
+LedRGBChunk_t lsqYellow[] = {
+        {csSetup, SMOOTH, ((Color_t){255, 153, 0})},
+        {csEnd}
+};
+LedRGBChunk_t lsqRed[] = {
+        {csSetup, SMOOTH, clRed},
+        {csEnd}
+};
+LedRGBChunk_t lsqOff[] = {
+        {csSetup, SMOOTH, clBlack},
         {csEnd}
 };
 
-LedRGBChunk_t lsqOff[] = {
-        {csSetup, 360, clBlack},
-        {csEnd},
-};
-
 ColorHSV_t hsv(120, 100, 100);
-TmrKL_t TmrSave {TIME_MS2I(3600), evtIdTimeToSave, tktOneShot};
 CrystalLed_t Leds;
 #endif
 
 int main(void) {
-#if 1 // ==== Get source of wakeup ====
-    rccEnablePWRInterface(FALSE);
-    if(PWR->CSR & PWR_CSR_WUF) { // Wakeup occured
-        // Is it button?
-        PinSetupInput(BTN1_PIN, pudPullDown);
-        if(Btn1IsPressed()) {
-            // Check if pressed long enough
-            for(uint32_t i=0; i<540000; i++) {
-                // Go sleep if btn released too fast
-                if(!Btn1IsPressed()) EnterSleepNow();
-            }
-            // Btn was keeped in pressed state long enough, proceed with powerOn
-        }
-    }
-#endif
-
 #if 1 // ==== Iwdg, Clk, Os, EvtQ, Uart ====
     // Start Watchdog. Will reset in main thread by periodic 1 sec events.
 //    Iwdg::InitAndStart(4500);
@@ -84,28 +73,11 @@ int main(void) {
     AFIO->MAPR = (0b010UL << 24) | (0b10UL << 10) | (0b10UL << 8) | AFIO_MAPR_USART1_REMAP;
     Printf("\r%S %S\r", APP_NAME, XSTRINGIFY(BUILD_TIME));
     Clk.PrintFreqs();
-//    // Check if IWDG frozen in standby
-//    if(!Flash::IwdgIsFrozenInStandby()) {
-//        Printf("IWDG not frozen in Standby, frozing\r");
-//        chThdSleepMilliseconds(45);
-//        Flash::IwdgFrozeInStandby();
-//    }
-
-    // Load and check color
-    Flash::Load((void*)&hsv, sizeof(ColorHSV_t));
-    Printf("Saved clr: %u\r", hsv.H);
-    if(hsv.H > 360) hsv.H = 135;
-    hsv.S = 100;
-    hsv.V = 100;
 
     // LEDs
     Leds.Init();
-    // Set what loaded
-    lsqOn[0].Color = hsv.ToRGB();
-    Leds.StartOrRestart(lsqOn);
+    Leds.StartOrRestart(lsqGreen);
 
-    // Wait until main button released
-    while(Btn1IsPressed()) { chThdSleepMilliseconds(63); }
     SimpleSensors::Init(); // Buttons
 
     // Battery measurement
@@ -134,54 +106,20 @@ void ITask() {
 
             case evtIdButtons:
                 Printf("Btn %u %u\r", Msg.BtnEvtInfo.BtnID, Msg.BtnEvtInfo.Type);
-                // Main button == BTN1
-                if(Msg.BtnEvtInfo.BtnID == 0) {
-                    if(Msg.BtnEvtInfo.Type == beLongPress) {
-                        IsEnteringSleep = !IsEnteringSleep;
-                        if(IsEnteringSleep) {
-                            Leds.StartOrRestart(lsqOff);
-                        }
-                        else Leds.StartOrRestart(lsqOn);
-                    }
-                    else if(Msg.BtnEvtInfo.Type == beRelease) {
-                        if(!IsEnteringSleep) Adc.StartMeasurement();
-                    }
+                if(Msg.BtnEvtInfo.Type == beRelease) {
+                    Adc.StartMeasurement();
                 }
-                // Right / Left buttons == BTN2 & 3
-                if((Msg.BtnEvtInfo.BtnID == 1 or Msg.BtnEvtInfo.BtnID == 2) and Msg.BtnEvtInfo.Type != beLongPress) {
-                    if(Msg.BtnEvtInfo.BtnID == 1) {
-                        if(hsv.H < 360) hsv.H++;
-                        else hsv.H = 0;
-                    }
-                    else if(Msg.BtnEvtInfo.BtnID == 2) {
-                        if(hsv.H > 0) hsv.H--;
-                        else hsv.H = 360;
-                    }
-                    lsqOn[0].Color = hsv.ToRGB();
-                    Leds.SetAllHsv(hsv);
-                    TmrSave.StartOrRestart();
-                }
-                break;
-
-            case evtIdTimeToSave:
-                Flash::Save((uint32_t*)&hsv, sizeof(ColorHSV_t));
-                Leds.Stop();
-                chThdSleepMilliseconds(153);
-                Leds.SetAllHsv(hsv);
-                break;
-
-            case evtIdRadioCmd:
-                lsqOn[0].Color.FromRGB(Msg.R, Msg.G, Msg.B);
-                Leds.StartOrRestart(lsqOn);
-                break;
-
-            case evtIdEverySecond:
-//                Printf("Second\r");
-//                Iwdg::Reload();
-                if(IsEnteringSleep and Leds.IsOff() and !Btn1IsPressed()) EnterSleep();
                 break;
 
             case evtIdAdcRslt: OnMeasurementDone(); break;
+
+            case evtIdEverySecond:
+                TimeS++;
+                if(TimeS < (S_IN_MINUTE * 15UL)) Leds.StartOrContinue(lsqGreen);
+                else if(TimeS < (S_IN_MINUTE * (15UL + 10UL))) Leds.StartOrContinue(lsqYellow);
+                else if(TimeS < (S_IN_MINUTE * (15UL + 10UL + 5UL))) Leds.StartOrContinue(lsqRed);
+                else Leds.StartOrContinue(lsqOff);
+                break;
 
             default: break;
         } // switch
@@ -194,7 +132,6 @@ void OnMeasurementDone() {
     uint32_t VBat = 2 * Adc.Adc2mV(Adc.GetResult(0), Adc.GetResult(1)); // *2 because of resistor divider
     uint8_t Percent = mV2PercentAlkaline(VBat);
     Printf("VBat: %umV; Percent: %u\r", VBat, Percent);
-    ColorHSV_t tmp = hsv;
     Leds.Stop();
     chThdSleepMilliseconds(108);
     if     (Percent <= 20) hsv = {0,   100, 100};
@@ -203,21 +140,6 @@ void OnMeasurementDone() {
     Leds.SetAllHsv(hsv);
     chThdSleepMilliseconds(1530);
     Leds.Stop();
-    hsv = tmp;
-    Leds.StartOrRestart(lsqOn);
-}
-
-void EnterSleep() {
-    Printf("Entering sleep\r");
-    chThdSleepMilliseconds(45);
-    chSysLock();
-    EnterSleepNow();
-    chSysUnlock();
-}
-
-void EnterSleepNow() {
-    Sleep::EnableWakeupPin(); // Btn0
-    Sleep::EnterStandby();
 }
 
 #if 1 // ======================= Command processing ============================

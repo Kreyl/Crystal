@@ -33,8 +33,9 @@ int8_t Rssi;
 extern EvtMsgQ_t<EvtMsg_t, MAIN_EVT_Q_LEN> EvtQMain;
 
 #if 1 // ================================ Task =================================
+__unused
 static THD_WORKING_AREA(warLvl1Thread, 128);
-__noreturn
+__unused
 static void rLvl1Thread(void *arg) {
     chRegSetThreadName("rLvl1");
     Radio.ITask();
@@ -70,15 +71,15 @@ uint8_t rLevel1_t::Init() {
 
 //    RMsgQ.Init();
     if(CC.Init() == retvOk) {
-        CC.SetPktSize(RPKT_LEN);
-        CC.DoIdleAfterTx();
-        CC.SetChannel(RCHNL_EACH_OTH);
-        CC.SetTxPower(CC_Pwr0dBm);
-        CC.SetBitrate(CCBitrate100k);
-//        CC.EnterPwrDown();
+//        CC.SetPktSize(RPKT_LEN);
+//        CC.DoIdleAfterTx();
+//        CC.SetChannel(RCHNL_EACH_OTH);
+//        CC.SetTxPower(CC_Pwr0dBm);
+//        CC.SetBitrate(CCBitrate100k);
+        CC.EnterPwrDown();
 
         // Thread
-        chThdCreateStatic(warLvl1Thread, sizeof(warLvl1Thread), HIGHPRIO, (tfunc_t)rLvl1Thread, NULL);
+//        chThdCreateStatic(warLvl1Thread, sizeof(warLvl1Thread), HIGHPRIO, (tfunc_t)rLvl1Thread, NULL);
         return retvOk;
     }
     else return retvFail;
