@@ -38,7 +38,7 @@ LedRGBChunk_t lsqGreen[] = {
         {csEnd}
 };
 LedRGBChunk_t lsqYellow[] = {
-        {csSetup, SMOOTH, ((Color_t){255, 153, 0})},
+        {csSetup, SMOOTH, ((Color_t){0, 0, 255})},
         {csEnd}
 };
 LedRGBChunk_t lsqRed[] = {
