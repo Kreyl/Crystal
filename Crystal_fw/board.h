@@ -8,7 +8,7 @@
 #pragma once
 
 // ==== General ====
-#define APP_NAME            "CrystalTimer"
+#define APP_NAME            "AlwaysOn"
 
 #ifndef TRUE
 #define TRUE    1

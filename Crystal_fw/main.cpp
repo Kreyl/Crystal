@@ -26,32 +26,34 @@ void ITask();
 #if 1 // === ADC ===
 extern Adc_t Adc;
 void OnMeasurementDone();
-TmrKL_t TmrOneS {TIME_MS2I(999), evtIdEverySecond, tktPeriodic};
-uint32_t TimeS = 0;
 #endif
 
 #if 1 // ======================== LEDs related =================================
-#define S_IN_MINUTE     60UL
 #define SMOOTH          720UL
-LedRGBChunk_t lsqGreen[] = {
-        {csSetup, SMOOTH, clGreen},
-        {csEnd}
-};
-LedRGBChunk_t lsqYellow[] = {
-        {csSetup, SMOOTH, ((Color_t){255, 153, 0})},
-        {csEnd}
-};
-LedRGBChunk_t lsqRed[] = {
-        {csSetup, SMOOTH, clRed},
-        {csEnd}
-};
-LedRGBChunk_t lsqOff[] = {
-        {csSetup, SMOOTH, clBlack},
-        {csEnd}
-};
+// Range of random colors
+#define CLR_HSV_FROM    345
+#define CLR_HSV_TO      360
 
-ColorHSV_t hsv(120, 100, 100);
+LedRGBChunk_t lsqOn[] = {
+        {csSetup, SMOOTH, clGreen}, // Green is dummy
+        {csEnd}
+};
 CrystalLed_t Leds;
+
+static uint32_t next = 1;
+uint32_t MyRand() {
+    next = next * 1103515245 + 12345;
+    return (next / 65536) % 32768;
+}
+
+void StartNewColor() {
+    uint32_t last = MyRand();
+    uint16_t H = (last % (CLR_HSV_TO + 1 - CLR_HSV_FROM)) + CLR_HSV_FROM;
+    Printf("%d\r", H);
+    lsqOn[0].Color.FromHSV(H, 100, 100);
+    Leds.StartOrRestart(lsqOn);
+}
+
 #endif
 
 int main(void) {
@@ -76,7 +78,8 @@ int main(void) {
 
     // LEDs
     Leds.Init();
-    Leds.StartOrRestart(lsqGreen);
+    Leds.SetupSeqEndEvt(evtIdLedsDone);
+    StartNewColor();
 
     SimpleSensors::Init(); // Buttons
 
@@ -87,8 +90,6 @@ int main(void) {
     Adc.Init();
 
     Radio.Init();
-
-    TmrOneS.StartOrRestart();
 
     // Main cycle
     ITask();
@@ -113,13 +114,7 @@ void ITask() {
 
             case evtIdAdcRslt: OnMeasurementDone(); break;
 
-            case evtIdEverySecond:
-                TimeS++;
-                if(TimeS < (S_IN_MINUTE * 15UL)) Leds.StartOrContinue(lsqGreen);
-                else if(TimeS < (S_IN_MINUTE * (15UL + 10UL))) Leds.StartOrContinue(lsqYellow);
-                else if(TimeS < (S_IN_MINUTE * (15UL + 10UL + 5UL))) Leds.StartOrContinue(lsqRed);
-                else Leds.StartOrContinue(lsqOff);
-                break;
+            case evtIdLedsDone: StartNewColor(); break;
 
             default: break;
         } // switch
@@ -134,12 +129,14 @@ void OnMeasurementDone() {
     Printf("VBat: %umV; Percent: %u\r", VBat, Percent);
     Leds.Stop();
     chThdSleepMilliseconds(108);
+    ColorHSV_t hsv;
     if     (Percent <= 20) hsv = {0,   100, 100};
     else if(Percent <  80) hsv = {30,  100, 100};
     else                   hsv = {120, 100, 100};
     Leds.SetAllHsv(hsv);
     chThdSleepMilliseconds(1530);
     Leds.Stop();
+    Leds.StartOrRestart(lsqOn);
 }
 
 #if 1 // ======================= Command processing ============================
