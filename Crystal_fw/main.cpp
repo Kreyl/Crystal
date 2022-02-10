@@ -33,25 +33,33 @@ uint32_t TimeS = 0;
 #if 1 // ======================== LEDs related =================================
 #define S_IN_MINUTE     60UL
 #define SMOOTH          720UL
-LedRGBChunk_t lsqGreen[] = {
+// Range of random colors
+#define CLR_HSV_FROM    120
+#define CLR_HSV_TO      180
+
+LedRGBChunk_t lsqOn[] = {
         {csSetup, SMOOTH, clGreen},
-        {csEnd}
-};
-LedRGBChunk_t lsqYellow[] = {
-        {csSetup, SMOOTH, ((Color_t){0, 0, 255})},
-        {csEnd}
-};
-LedRGBChunk_t lsqRed[] = {
-        {csSetup, SMOOTH, clRed},
         {csEnd}
 };
 LedRGBChunk_t lsqOff[] = {
         {csSetup, SMOOTH, clBlack},
         {csEnd}
 };
-
-ColorHSV_t hsv(120, 100, 100);
 CrystalLed_t Leds;
+
+static uint32_t next = 1;
+uint32_t MyRand() {
+    next = next * 1103515245 + 12345;
+    return (next / 65536) % 32768;
+}
+
+void StartNewColor() {
+    uint32_t last = MyRand();
+    uint16_t H = (last % (CLR_HSV_TO + 1 - CLR_HSV_FROM)) + CLR_HSV_FROM;
+    Printf("%d\r", H);
+    lsqOn[0].Color.FromHSV(H, 100, 100);
+    Leds.StartOrRestart(lsqOn);
+}
 #endif
 
 int main(void) {
@@ -76,7 +84,8 @@ int main(void) {
 
     // LEDs
     Leds.Init();
-    Leds.StartOrRestart(lsqGreen);
+    Leds.SetupSeqEndEvt(evtIdLedsDone);
+    StartNewColor();
 
     SimpleSensors::Init(); // Buttons
 
@@ -115,10 +124,12 @@ void ITask() {
 
             case evtIdEverySecond:
                 TimeS++;
-                if(TimeS < (S_IN_MINUTE * 15UL)) Leds.StartOrContinue(lsqGreen);
-                else if(TimeS < (S_IN_MINUTE * (15UL + 10UL))) Leds.StartOrContinue(lsqYellow);
-                else if(TimeS < (S_IN_MINUTE * (15UL + 10UL + 5UL))) Leds.StartOrContinue(lsqRed);
+                if(TimeS < (S_IN_MINUTE * 15UL)) Leds.StartOrContinue(lsqOn);
                 else Leds.StartOrContinue(lsqOff);
+                break;
+
+            case evtIdLedsDone:
+                if(TimeS < (S_IN_MINUTE * 15UL)) StartNewColor();
                 break;
 
             default: break;
@@ -134,6 +145,7 @@ void OnMeasurementDone() {
     Printf("VBat: %umV; Percent: %u\r", VBat, Percent);
     Leds.Stop();
     chThdSleepMilliseconds(108);
+    ColorHSV_t hsv;
     if     (Percent <= 20) hsv = {0,   100, 100};
     else if(Percent <  80) hsv = {30,  100, 100};
     else                   hsv = {120, 100, 100};
