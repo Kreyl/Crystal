@@ -31,26 +31,27 @@ bool IsEnteringSleep = false;
 extern Adc_t Adc;
 void OnMeasurementDone();
 TmrKL_t TmrOneS {TIME_MS2I(999), evtIdEverySecond, tktPeriodic};
+#define SLEEP_TIMEOUT_S     7
+uint8_t TmrSleep;
 #endif
 
 #if 1 // ======================== LEDs related =================================
-LedRGBChunk_t lsqOn[] = {
-        {csSetup, 600, clGreen},
-        {csEnd}
+const EffSettings_t EffSettings[7] = {
+     //  Off     On       Smooth     Color1 H    Color2 H
+        {9, 45,  9, 54,   108, 360,   330, 360,   215, 230}, // 0 Requiem
+        {9, 45,  9, 54,   270, 630,   161, 195,    50,  77}, // 1 Grig
+        {9, 45,  9, 54,   108, 360,     0,  15,   250, 270}, // 2 tango
+        {9, 45,  9, 54,   405, 630,    80, 160,   260, 290}, // 3 waltz
+        {9, 45, 99, 99,   108, 810,     0,   7,   353, 360}, // 4 valkirie
+        {9, 45, 99, 99,   108, 630,   225, 250,   250, 265}, // 5 dance
+        {9, 45,  9, 54,   270, 405,   120, 270,    50,  77}, // 6
 };
 
-LedRGBChunk_t lsqOff[] = {
-        {csSetup, 360, clBlack},
-        {csEnd},
-};
-
-ColorHSV_t hsv(120, 100, 100);
-TmrKL_t TmrSave {TIME_MS2I(3600), evtIdTimeToSave, tktOneShot};
-CrystalLed_t Leds;
+const EffSettings_t *PCurrSettings = &EffSettings[0];
 #endif
 
 int main(void) {
-#if 1 // ==== Get source of wakeup ====
+#if 0 // ==== Get source of wakeup ====
     rccEnablePWRInterface(FALSE);
     if(PWR->CSR & PWR_CSR_WUF) { // Wakeup occured
         // Is it button?
@@ -68,8 +69,8 @@ int main(void) {
 
 #if 1 // ==== Iwdg, Clk, Os, EvtQ, Uart ====
     // Start Watchdog. Will reset in main thread by periodic 1 sec events.
-//    Iwdg::InitAndStart(4500);
-//    Iwdg::DisableInDebug();
+    Iwdg::InitAndStart(4500);
+    Iwdg::DisableInDebug();
     Clk.UpdateFreqValues();
     // Init OS
     halInit();
@@ -82,30 +83,32 @@ int main(void) {
     Uart.Init();
     // Remap pins: disable JTAG leaving SWD, T3C2 at PB5, T2C3&4 at PB10&11, USART1 at PB6/7
     AFIO->MAPR = (0b010UL << 24) | (0b10UL << 10) | (0b10UL << 8) | AFIO_MAPR_USART1_REMAP;
+
+    // Check if was in standby
+    rccEnablePWRInterface(FALSE);
+    if(Sleep::WasInStandby()) { // Was in standby => is sleeping; check radio
+        if(!Sleep::WakeUpOccured()) { // was not woke up by button
+            if(Radio.InitAndRxOnce() == retvOk) {
+                PCurrSettings = &EffSettings[Radio.PktRx.BtnIndx]; // <7 check is inside
+            }
+            else { // Noone here
+                Printf(".");
+                chSysLock();
+                EnterSleepNow();
+                chSysUnlock();
+            }
+        } // if button
+    }
+
+    // Power-on, or radio pkt received => proceed with init
     Printf("\r%S %S\r", APP_NAME, XSTRINGIFY(BUILD_TIME));
     Clk.PrintFreqs();
-//    // Check if IWDG frozen in standby
-//    if(!Flash::IwdgIsFrozenInStandby()) {
-//        Printf("IWDG not frozen in Standby, frozing\r");
-//        chThdSleepMilliseconds(45);
-//        Flash::IwdgFrozeInStandby();
-//    }
-
-    // Load and check color
-    Flash::Load((void*)&hsv, sizeof(ColorHSV_t));
-    Printf("Saved clr: %u\r", hsv.H);
-    if(hsv.H > 360) hsv.H = 135;
-    hsv.S = 100;
-    hsv.V = 100;
 
     // LEDs
-    Leds.Init();
-    // Set what loaded
-    lsqOn[0].Color = hsv.ToRGB();
-    Leds.StartOrRestart(lsqOn);
+    CrystalLeds::Init();
 
     // Wait until main button released
-    while(Btn1IsPressed()) { chThdSleepMilliseconds(63); }
+//    while(Btn1IsPressed()) { chThdSleepMilliseconds(63); }
     SimpleSensors::Init(); // Buttons
 
     // Battery measurement
@@ -117,6 +120,7 @@ int main(void) {
     Radio.Init();
 
     TmrOneS.StartOrRestart();
+    TmrSleep = SLEEP_TIMEOUT_S;
 
     // Main cycle
     ITask();
@@ -136,52 +140,33 @@ void ITask() {
                 Printf("Btn %u %u\r", Msg.BtnEvtInfo.BtnID, Msg.BtnEvtInfo.Type);
                 // Main button == BTN1
                 if(Msg.BtnEvtInfo.BtnID == 0) {
-                    if(Msg.BtnEvtInfo.Type == beLongPress) {
-                        IsEnteringSleep = !IsEnteringSleep;
-                        if(IsEnteringSleep) {
-                            Leds.StartOrRestart(lsqOff);
-                        }
-                        else Leds.StartOrRestart(lsqOn);
-                    }
-                    else if(Msg.BtnEvtInfo.Type == beRelease) {
-                        if(!IsEnteringSleep) Adc.StartMeasurement();
-                    }
+                    Adc.StartMeasurement();
                 }
-                // Right / Left buttons == BTN2 & 3
-                if((Msg.BtnEvtInfo.BtnID == 1 or Msg.BtnEvtInfo.BtnID == 2) and Msg.BtnEvtInfo.Type != beLongPress) {
-                    if(Msg.BtnEvtInfo.BtnID == 1) {
-                        if(hsv.H < 360) hsv.H++;
-                        else hsv.H = 0;
-                    }
-                    else if(Msg.BtnEvtInfo.BtnID == 2) {
-                        if(hsv.H > 0) hsv.H--;
-                        else hsv.H = 360;
-                    }
-                    lsqOn[0].Color = hsv.ToRGB();
-                    Leds.SetAllHsv(hsv);
-                    TmrSave.StartOrRestart();
-                }
-                break;
-
-            case evtIdTimeToSave:
-                Flash::Save((uint32_t*)&hsv, sizeof(ColorHSV_t));
-                Leds.Stop();
-                chThdSleepMilliseconds(153);
-                Leds.SetAllHsv(hsv);
                 break;
 
             case evtIdRadioCmd:
-                lsqOn[0].Color.FromRGB(Msg.R, Msg.G, Msg.B);
-                Leds.StartOrRestart(lsqOn);
+                IsEnteringSleep = false;
+                TmrSleep = SLEEP_TIMEOUT_S;
+                CrystalLeds::On();
+                if(Msg.BtnIndx < 7) PCurrSettings = &EffSettings[Msg.BtnIndx];
                 break;
 
             case evtIdEverySecond:
 //                Printf("Second\r");
-//                Iwdg::Reload();
-                if(IsEnteringSleep and Leds.IsOff() and !Btn1IsPressed()) EnterSleep();
+                Iwdg::Reload();
+                if(TmrSleep == 0) {
+                    IsEnteringSleep = true;
+                    CrystalLeds::Off();
+                }
+                else TmrSleep--;
+                if(IsEnteringSleep and CrystalLeds::AreOff()) EnterSleep();
                 break;
 
-            case evtIdAdcRslt: OnMeasurementDone(); break;
+            case evtIdAdcRslt:
+                OnMeasurementDone();
+                IsEnteringSleep = false;
+                TmrSleep = SLEEP_TIMEOUT_S;
+                break;
 
             default: break;
         } // switch
@@ -194,17 +179,14 @@ void OnMeasurementDone() {
     uint32_t VBat = 2 * Adc.Adc2mV(Adc.GetResult(0), Adc.GetResult(1)); // *2 because of resistor divider
     uint8_t Percent = mV2PercentAlkaline(VBat);
     Printf("VBat: %umV; Percent: %u\r", VBat, Percent);
-    ColorHSV_t tmp = hsv;
-    Leds.Stop();
-    chThdSleepMilliseconds(108);
+    ColorHSV_t hsv;
     if     (Percent <= 20) hsv = {0,   100, 100};
     else if(Percent <  80) hsv = {30,  100, 100};
     else                   hsv = {120, 100, 100};
-    Leds.SetAllHsv(hsv);
+    CrystalLeds::SetAllHsv(hsv);
     chThdSleepMilliseconds(1530);
-    Leds.Stop();
-    hsv = tmp;
-    Leds.StartOrRestart(lsqOn);
+    if(Sleep::WakeUpOccured()) EnterSleep();
+    else CrystalLeds::On();
 }
 
 void EnterSleep() {
@@ -217,6 +199,7 @@ void EnterSleep() {
 
 void EnterSleepNow() {
     Sleep::EnableWakeupPin(); // Btn0
+    Sleep::ClearStandbyFlag();
     Sleep::EnterStandby();
 }
 
@@ -227,19 +210,33 @@ void OnCmd(Shell_t *PShell) {
     if(PCmd->NameIs("Ping")) PShell->Ok();
     else if(PCmd->NameIs("Version")) PShell->Print("%S %S\r", APP_NAME, XSTRINGIFY(BUILD_TIME));
 
-    else if(PCmd->NameIs("Clr")) {
-//        uint8_t N;
-//        Color_t Clr;
-//        if(PCmd->GetNext<uint8_t>(&N) == retvOk) {
+    else if(PCmd->NameIs("N")) {
+        uint8_t N;
+        if(PCmd->GetNext<uint8_t>(&N) == retvOk) {
+            if(N <= 7) {
+                PCurrSettings = &EffSettings[N];
+                PShell->Ok();
+            }
+            else PShell->BadParam();
+        }
 //            if(PCmd->GetClrRGB(&Clr) == retvOk) {
 //                if(N > 3) for(auto &Led : Leds) Led.SetColor(Clr);
 //                else Leds[N].SetColor(Clr);
 //            }
 //            else PShell->BadParam();
 //        }
-//        else PShell->BadParam();
+        else PShell->BadParam();
     }
 
+    else if(PCmd->NameIs("On")) {
+        CrystalLeds::On();
+        PShell->Ok();
+    }
+
+    else if(PCmd->NameIs("Off")) {
+        CrystalLeds::Off();
+        PShell->Ok();
+    }
 
     else PShell->CmdUnknown();
 }

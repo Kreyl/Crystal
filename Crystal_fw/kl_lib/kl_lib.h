@@ -231,15 +231,6 @@ uint8_t TryStrToFloat(char* S, float *POutput);
 }; // namespace
 #endif
 
-#if 1 // ============================ kl_string ================================
-int kl_strcasecmp(const char *s1, const char *s2);
-
-char* kl_strtok(char* s, const char* delim, char**PLast);
-
-int kl_sscanf(const char* s, const char* format, ...);
-
-#endif
-
 #ifdef DMA_MEM2MEM
 namespace Mem2MemDma { // ========== MEM2MEM DMA ===========
 
@@ -334,13 +325,31 @@ public:
 #if 1 // ========================== Random =====================================
 namespace Random {
 //uint32_t last = 1;
+
+static uint32_t next = 1;
+
+static int32_t do_rand(uint32_t *ctx) {
+#if 0
+    if(*ctx == 0) *ctx = 123459876;
+    int32_t hi = *ctx / 127773;
+    int32_t lo = *ctx % 127773;
+    int32_t x = 16807 * lo - 2836 * hi;
+    if(x < 0) x += 0x7FFFFFFF;
+    return ((*ctx = x) % ((uint32_t)0x7fffffff + 1));
+#else
+    return ((*ctx = *ctx * 1103515245 + 12345) % ((uint32_t)0x7fffffff + 1));
+#endif
+}
+
+static int32_t rand() { return do_rand(&next); }
+
 // Generate pseudo-random value
 static inline long int Generate(long int LowInclusive, long int HighInclusive) {
-    uint32_t last = random();
+    uint32_t last = rand();
     return (last % (HighInclusive + 1 - LowInclusive)) + LowInclusive;
 }
 // Seed pseudo-random generator with new seed
-static inline void Seed(unsigned int Seed) { srandom(Seed); }
+static inline void Seed(unsigned int Seed) { next = Seed; }
 
 // True random
 #if defined STM32L4XX
@@ -1375,6 +1384,10 @@ static inline void EnterStandby() {
 #if defined STM32F2XX || defined STM32F1XX
 static inline void EnableWakeupPin()  { PWR->CSR |=  PWR_CSR_EWUP; }
 static inline void DisableWakeupPin() { PWR->CSR &= ~PWR_CSR_EWUP; }
+static inline bool WasInStandby() { return (PWR->CSR & PWR_CSR_SBF); }
+static inline bool WakeUpOccured() { return (PWR->CSR & PWR_CSR_WUF); }
+static inline void ClearStandbyFlag() { PWR->CR |= PWR_CR_CSBF; }
+static inline void ClearWakeupFlag() { PWR->CR |= PWR_CR_CWUF; }
 #elif defined STM32F7XX
 
 #else
@@ -1382,8 +1395,7 @@ static inline void EnableWakeup1Pin()  { PWR->CSR |=  PWR_CSR_EWUP1; }
 static inline void DisableWakeup1Pin() { PWR->CSR &= ~PWR_CSR_EWUP1; }
 static inline void EnableWakeup2Pin()  { PWR->CSR |=  PWR_CSR_EWUP2; }
 static inline void DisableWakeup2Pin() { PWR->CSR &= ~PWR_CSR_EWUP2; }
-static inline bool WasInStandby() { return (PWR->CSR & PWR_CSR_SBF); }
-static inline void ClearStandbyFlag() { PWR->CR |= PWR_CR_CSBF; }
+
 #endif
 
 #endif // if L476 or others

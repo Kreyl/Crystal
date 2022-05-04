@@ -52,16 +52,31 @@ void rLevel1_t::ITask() {
                 Msg.R = PktRx.R;
                 Msg.G = PktRx.G;
                 Msg.B = PktRx.B;
+                Msg.BtnIndx = PktRx.BtnIndx;
                 EvtQMain.SendNowOrExit(Msg);
             }
-            Printf("Clr: %u %u %u; Rssi: %d\r", PktRx.R, PktRx.G, PktRx.B, Rssi);
+//            Printf("Clr: %u %u %u; Btn: %u; Rssi: %d\r", PktRx.R, PktRx.G, PktRx.B, PktRx.BtnIndx, Rssi);
         }
-        chThdSleepMilliseconds(270);
+        CC.PowerOff();
+        chThdSleepMilliseconds(360);
     } // while true
 }
 #endif // task
 
-#if 1 // ============================
+uint8_t rLevel1_t::InitCC() {
+    if(CCIsInitialized) return retvOk;
+    if(CC.Init() == retvOk) {
+        CC.SetPktSize(RPKT_LEN);
+        CC.DoIdleAfterTx();
+        CC.SetChannel(RCHNL_EACH_OTH);
+        CC.SetTxPower(CC_Pwr0dBm);
+        CC.SetBitrate(CCBitrate100k);
+        CCIsInitialized = true;
+        return retvOk;
+    }
+    else return retvFail;
+}
+
 uint8_t rLevel1_t::Init() {
 #ifdef DBG_PINS
     PinSetupOut(DBG_GPIO1, DBG_PIN1, omPushPull);
@@ -69,18 +84,22 @@ uint8_t rLevel1_t::Init() {
 #endif
 
 //    RMsgQ.Init();
-    if(CC.Init() == retvOk) {
-        CC.SetPktSize(RPKT_LEN);
-        CC.DoIdleAfterTx();
-        CC.SetChannel(RCHNL_EACH_OTH);
-        CC.SetTxPower(CC_Pwr0dBm);
-        CC.SetBitrate(CCBitrate100k);
+    if(InitCC() == retvOk) {
 //        CC.EnterPwrDown();
-
+        Printf("CC init ok\r");
         // Thread
         chThdCreateStatic(warLvl1Thread, sizeof(warLvl1Thread), HIGHPRIO, (tfunc_t)rLvl1Thread, NULL);
         return retvOk;
     }
     else return retvFail;
 }
-#endif
+
+uint8_t rLevel1_t::InitAndRxOnce() {
+    if(InitCC() == retvOk) {
+        CC.Recalibrate();
+        uint8_t Rslt = CC.Receive(27, &PktRx, RPKT_LEN, &Rssi);
+        CC.PowerOff();
+        if(Rslt == retvOk and PktRx.Sign == 0xCA115EA1 and PktRx.BtnIndx < 7) return retvOk;
+    }
+    return retvFail;
+}

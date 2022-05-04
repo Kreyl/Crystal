@@ -56,7 +56,8 @@ union EvtMsg_t {
                 union {
                     int32_t Value;
                     struct {
-                        uint8_t R, G, B, W;
+                        uint8_t R, G, B;
+                        uint8_t BtnIndx;
                     }  __attribute__((__packed__));
                 }  __attribute__((__packed__));
                 uint8_t ValueID;

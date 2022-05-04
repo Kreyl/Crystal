@@ -12,6 +12,7 @@
 #include "kl_lib.h"
 #include "board.h"
 #include "color.h"
+#include "kl_string.h"
 
 #define DELIMITERS              " ,"
 #define PREV_CHAR_TIMEOUT_ms    99UL
@@ -59,7 +60,7 @@ public:
         char* S = GetNextString();
         if(S) {
             char *p;
-            int32_t dw32 = strtol(S, &p, 0);
+            int32_t dw32 = kl_strtol(S, &p, 0);
             if(*p == '\0') {
                 *POutput = (T)dw32;
                 return retvOk;

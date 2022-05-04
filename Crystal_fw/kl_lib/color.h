@@ -9,7 +9,9 @@
 
 #include "inttypes.h"
 #include <sys/cdefs.h>
-#include "shell.h"
+//#include "shell.h"
+#include "kl_lib.h"
+#include "ch.h"
 #include <stdlib.h> // for random
 
 void Printf(const char *format, ...);
