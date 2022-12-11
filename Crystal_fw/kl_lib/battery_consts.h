@@ -39,7 +39,7 @@ static uint8_t mV2PercentAlkaline(uint16_t mV) {
 }
 #endif
 
-#if 1 // ========================= Alkaline 4.5V ===============================
+#if 0 // ========================= Alkaline 4.5V ===============================
 static const mVPercent_t mVPercentTableAlkaline[] = {
         {4320, 100},
         {4110, 80},

@@ -19,5 +19,7 @@ enum EvtMsgId_t {
     evtIdAdcRslt,
     evtIdPwrOffTimeout,
 
+    evtIdLedsDone,
+
     evtIdRadioCmd
 };
