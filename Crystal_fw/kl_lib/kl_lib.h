@@ -5,7 +5,8 @@
  *      Author: kreyl
  */
 
-#pragma once
+#ifndef KL_LIB_H__
+#define KL_LIB_H__
 
 #include "ch.h"
 #include "hal.h"
@@ -882,12 +883,12 @@ static inline void PinSetupInput(
             else PGpio->ODR |= (uint32_t)(1<<PinN);
         }
         if(PinN < 8) {
-            uint8_t Offset = PinN*4;
+            Offset = PinN*4;
             PGpio->CRL &= ~((uint32_t)(0b1111 << Offset));  // Clear both mode and cnf
             PGpio->CRL |= CnfMode << Offset;
         }
         else {
-            uint8_t Offset = (PinN - 8) * 4;
+            Offset = (PinN - 8) * 4;
             PGpio->CRH &= ~((uint32_t)(0b1111 << Offset));  // Clear both mode and cnf
             PGpio->CRH |= CnfMode << Offset;
         }
@@ -2324,3 +2325,5 @@ public:
 extern Clk_t Clk;
 
 #endif // Clocking
+
+#endif //KL_LIB_H__

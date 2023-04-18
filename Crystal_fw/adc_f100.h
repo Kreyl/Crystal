@@ -5,7 +5,8 @@
  *      Author: kreyl
  */
 
-#pragma once
+#ifndef ADC_F100_H__
+#define ADC_F100_H__
 
 #include "board.h"
 #include "hal.h"
@@ -78,3 +79,5 @@ public:
 #define ADC_SampleTime_55_5Cycles                    ((uint32_t)0x00000005)
 #define ADC_SampleTime_71_5Cycles                    ((uint32_t)0x00000006)
 #define ADC_SampleTime_239_5Cycles                   ((uint32_t)0x00000007)
+
+#endif //ADC_F100_H__

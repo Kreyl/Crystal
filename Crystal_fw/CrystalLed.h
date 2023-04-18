@@ -5,7 +5,8 @@
  *      Author: layst
  */
 
-#pragma once
+#ifndef CRYSTALLED_H__
+#define CRYSTALLED_H__
 
 #include "ChunkTypes.h"
 
@@ -41,3 +42,5 @@ bool AreOff();
 void SetAllHsv(ColorHSV_t hsv);
 
 } // namespace
+
+#endif //CRYSTALLED_H__

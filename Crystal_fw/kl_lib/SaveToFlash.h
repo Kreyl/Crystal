@@ -5,7 +5,8 @@
  *      Author: Kreyl
  */
 
-#pragma once
+#ifndef SAVETOFLASH_H__
+#define SAVETOFLASH_H__
 
 #include "inttypes.h"
 #include "chtypes.h"
@@ -49,3 +50,5 @@ uint8_t Save2I(uint32_t *ptr, uint32_t ByteSz);
 #endif
 
 }
+
+#endif //SAVETOFLASH_H__

@@ -5,7 +5,8 @@
  *      Author: layst
  */
 
-#pragma once
+#ifndef KL_STRING_H__
+#define KL_STRING_H__
 
 #ifndef LONG_MIN
 #define LONG_MIN    (-2147483648)
@@ -21,3 +22,5 @@ char* kl_strtok(char* s, const char* delim, char**PLast);
 int kl_sscanf(const char* s, const char* format, ...);
 int kl_strlen(const char* s);
 long kl_strtol(const char *nptr, char **endptr, int base);
+
+#endif //KL_STRING_H__

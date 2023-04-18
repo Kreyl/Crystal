@@ -86,19 +86,19 @@ int main(void) {
 
     // Check if was in standby
     rccEnablePWRInterface(FALSE);
-    if(Sleep::WasInStandby()) { // Was in standby => is sleeping; check radio
-        if(!Sleep::WakeUpOccured()) { // was not woke up by button
-            if(Radio.InitAndRxOnce() == retvOk) {
-                PCurrSettings = &EffSettings[Radio.PktRx.BtnIndx]; // <7 check is inside
-            }
-            else { // Noone here
-                Printf(".");
-                chSysLock();
-                EnterSleepNow();
-                chSysUnlock();
-            }
-        } // if button
-    }
+//    if(Sleep::WasInStandby()) { // Was in standby => is sleeping; check radio
+//        if(!Sleep::WakeUpOccured()) { // was not woke up by button
+//            if(Radio.InitAndRxOnce() == retvOk) {
+//                PCurrSettings = &EffSettings[Radio.PktRx.BtnIndx]; // <7 check is inside
+//            }
+//            else { // Noone here
+//                Printf(".");
+//                chSysLock();
+//                EnterSleepNow();
+//                chSysUnlock();
+//            }
+//        } // if button
+//    }
 
     // Power-on, or radio pkt received => proceed with init
     Printf("\r%S %S\r", APP_NAME, XSTRINGIFY(BUILD_TIME));
@@ -106,6 +106,7 @@ int main(void) {
 
     // LEDs
     CrystalLeds::Init();
+    CrystalLeds::SetAllHsv(ColorHSV_t(180, 100, 100));
 
     // Wait until main button released
 //    while(Btn1IsPressed()) { chThdSleepMilliseconds(63); }
@@ -117,13 +118,15 @@ int main(void) {
     PinSetHi(ADC_BAT_EN);
     Adc.Init();
 
-    Radio.Init();
+//    Radio.Init();
 
     TmrOneS.StartOrRestart();
     TmrSleep = SLEEP_TIMEOUT_S;
 
     // Main cycle
     ITask();
+
+    return 0;
 }
 
 __noreturn
@@ -154,12 +157,12 @@ void ITask() {
             case evtIdEverySecond:
 //                Printf("Second\r");
                 Iwdg::Reload();
-                if(TmrSleep == 0) {
-                    IsEnteringSleep = true;
-                    CrystalLeds::Off();
-                }
-                else TmrSleep--;
-                if(IsEnteringSleep and CrystalLeds::AreOff()) EnterSleep();
+//                if(TmrSleep == 0) {
+//                    IsEnteringSleep = true;
+//                    CrystalLeds::Off();
+//                }
+//                else TmrSleep--;
+//                if(IsEnteringSleep and CrystalLeds::AreOff()) EnterSleep();
                 break;
 
             case evtIdAdcRslt:

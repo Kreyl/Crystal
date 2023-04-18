@@ -5,7 +5,8 @@
  *      Author: kreyl
  */
 
-#pragma once
+#ifndef BATTERY_CONSTS_H__
+#define BATTERY_CONSTS_H__
 
 #ifndef countof
 #define countof(A)  (sizeof(A)/sizeof(A[0]))
@@ -99,3 +100,5 @@ static const mVPercent_t mVPercentTableLi3V[] = {
         {1950, 10}
 };
 #endif
+
+#endif //BATTERY_CONSTS_H__
