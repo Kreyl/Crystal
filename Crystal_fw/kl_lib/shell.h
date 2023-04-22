@@ -236,11 +236,11 @@ public:
         if(PCmd->GetParams<int32_t>(2, &Indx, &Value) == retvOk) {...}
         else PShell->Ack(retvCmdError);    */
     template <typename T>
-    uint8_t GetParams(uint8_t ACnt, ...) {
+    uint8_t GetParams(uint8_t Cnt, ...) {
         uint8_t Rslt = retvOk;
         va_list args;
-        va_start(args, ACnt);
-        while(ACnt--) {
+        va_start(args, Cnt);
+        while(Cnt--) {
             T* ptr = va_arg(args, T*);
             Rslt = GetNext<T>(ptr);
             if(Rslt != retvOk) break;

@@ -70,7 +70,7 @@ void PrintMemoryInfo() {
             info.arena, info.ordblks, info.hblks, info.hblkhd,
             info.uordblks, info.fordblks, info.keepcost);
 }
-/*
+
 extern "C"
 caddr_t _sbrk(int incr) {
     extern uint8_t __heap_base__;
@@ -87,7 +87,7 @@ caddr_t _sbrk(int incr) {
     current_end += incr;
     return (caddr_t)current_block_address;
 }
-*/
+
 #ifdef DMA_MEM2MEM
 static thread_reference_t MemThdRef;
 static void DmaMem2MemIrq(void *p, uint32_t flags) {

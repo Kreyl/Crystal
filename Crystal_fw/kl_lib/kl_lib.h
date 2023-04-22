@@ -883,12 +883,12 @@ static inline void PinSetupInput(
             else PGpio->ODR |= (uint32_t)(1<<PinN);
         }
         if(PinN < 8) {
-            Offset = PinN*4;
+            uint8_t Offset = PinN*4;
             PGpio->CRL &= ~((uint32_t)(0b1111 << Offset));  // Clear both mode and cnf
             PGpio->CRL |= CnfMode << Offset;
         }
         else {
-            Offset = (PinN - 8) * 4;
+            uint8_t Offset = (PinN - 8) * 4;
             PGpio->CRH &= ~((uint32_t)(0b1111 << Offset));  // Clear both mode and cnf
             PGpio->CRH |= CnfMode << Offset;
         }

@@ -31,14 +31,13 @@ bool IsEnteringSleep = false;
 extern Adc_t Adc;
 void OnMeasurementDone();
 TmrKL_t TmrOneS {TIME_MS2I(999), evtIdEverySecond, tktPeriodic};
-#define SLEEP_TIMEOUT_S     7
-uint8_t TmrSleep;
+int32_t DelayBeforeOffByRadio = 0;
 #endif
 
 #if 1 // ======================== LEDs related =================================
 const EffSettings_t EffSettings[7] = {
      //  Off     On       Smooth     Color1 H    Color2 H
-        {9, 45,  9, 54,   108, 360,   330, 360,   215, 230}, // 0 Requiem
+        {9, 45,  9, 54,   450, 720,     0, 360,     0,  360},
         {9, 45,  9, 54,   270, 630,   161, 195,    50,  77}, // 1 Grig
         {9, 45,  9, 54,   108, 360,     0,  15,   250, 270}, // 2 tango
         {9, 45,  9, 54,   405, 630,    80, 160,   260, 290}, // 3 waltz
@@ -86,19 +85,14 @@ int main(void) {
 
     // Check if was in standby
     rccEnablePWRInterface(FALSE);
-//    if(Sleep::WasInStandby()) { // Was in standby => is sleeping; check radio
-//        if(!Sleep::WakeUpOccured()) { // was not woke up by button
-//            if(Radio.InitAndRxOnce() == retvOk) {
-//                PCurrSettings = &EffSettings[Radio.PktRx.BtnIndx]; // <7 check is inside
-//            }
-//            else { // Noone here
-//                Printf(".");
-//                chSysLock();
-//                EnterSleepNow();
-//                chSysUnlock();
-//            }
-//        } // if button
-//    }
+    if(Sleep::WasInStandby()) { // Was in standby => is sleeping; check radio
+        if(Radio.InitAndRxOnce() != retvOk) { // Noone here
+            chSysLock();
+            EnterSleepNow();
+            chSysUnlock();
+        }
+        DelayBeforeOffByRadio = 4;
+    }
 
     // Power-on, or radio pkt received => proceed with init
     Printf("\r%S %S\r", APP_NAME, XSTRINGIFY(BUILD_TIME));
@@ -106,27 +100,23 @@ int main(void) {
 
     // LEDs
     CrystalLeds::Init();
-    CrystalLeds::SetAllHsv(ColorHSV_t(180, 100, 100));
 
     // Wait until main button released
 //    while(Btn1IsPressed()) { chThdSleepMilliseconds(63); }
-    SimpleSensors::Init(); // Buttons
+//    SimpleSensors::Init(); // Buttons
 
     // Battery measurement
-    PinSetupAnalog(ADC_BAT_PIN);
-    PinSetupOut(ADC_BAT_EN, omPushPull);
-    PinSetHi(ADC_BAT_EN);
-    Adc.Init();
+//    PinSetupAnalog(ADC_BAT_PIN);
+//    PinSetupOut(ADC_BAT_EN, omPushPull);
+//    PinSetHi(ADC_BAT_EN);
+//    Adc.Init();
 
-//    Radio.Init();
+    Radio.Init();
 
     TmrOneS.StartOrRestart();
-    TmrSleep = SLEEP_TIMEOUT_S;
 
     // Main cycle
     ITask();
-
-    return 0;
 }
 
 __noreturn
@@ -139,36 +129,29 @@ void ITask() {
                 ((Shell_t*)Msg.Ptr)->SignalCmdProcessed();
                 break;
 
-            case evtIdButtons:
-                Printf("Btn %u %u\r", Msg.BtnEvtInfo.BtnID, Msg.BtnEvtInfo.Type);
-                // Main button == BTN1
-                if(Msg.BtnEvtInfo.BtnID == 0) {
-                    Adc.StartMeasurement();
-                }
-                break;
+//            case evtIdButtons:
+//                Printf("Btn %u %u\r", Msg.BtnEvtInfo.BtnID, Msg.BtnEvtInfo.Type);
+//                // Main button == BTN1
+//                if(Msg.BtnEvtInfo.BtnID == 0) {
+//                    Adc.StartMeasurement();
+//                }
+//                break;
 
             case evtIdRadioCmd:
-                IsEnteringSleep = false;
-                TmrSleep = SLEEP_TIMEOUT_S;
-                CrystalLeds::On();
-                if(Msg.BtnIndx < 7) PCurrSettings = &EffSettings[Msg.BtnIndx];
+                Printf("RCmd\r");
+                if(DelayBeforeOffByRadio <= 0) CrystalLeds::Off();
                 break;
 
             case evtIdEverySecond:
 //                Printf("Second\r");
                 Iwdg::Reload();
-//                if(TmrSleep == 0) {
-//                    IsEnteringSleep = true;
-//                    CrystalLeds::Off();
-//                }
-//                else TmrSleep--;
-//                if(IsEnteringSleep and CrystalLeds::AreOff()) EnterSleep();
+                if(DelayBeforeOffByRadio > 0) DelayBeforeOffByRadio--;
+                if(CrystalLeds::AreOff()) EnterSleep();
                 break;
 
             case evtIdAdcRslt:
                 OnMeasurementDone();
                 IsEnteringSleep = false;
-                TmrSleep = SLEEP_TIMEOUT_S;
                 break;
 
             default: break;

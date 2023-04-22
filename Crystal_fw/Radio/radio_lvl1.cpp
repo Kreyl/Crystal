@@ -45,14 +45,10 @@ void rLevel1_t::ITask() {
     while(true) {
         CC.Recalibrate();
 //        CC.Transmit(&PktTx, RPKT_LEN);
-        uint8_t Rslt = CC.Receive(27, &PktRx, RPKT_LEN, &Rssi);
+        uint8_t Rslt = CC.Receive(36, &PktRx, RPKT_LEN, &Rssi);
         if(Rslt == retvOk) {
-            if(PktRx.Sign == 0xCA115EA1) {
-                EvtMsg_t Msg(evtIdRadioCmd, 0, 0);
-                Msg.R = PktRx.R;
-                Msg.G = PktRx.G;
-                Msg.B = PktRx.B;
-                Msg.BtnIndx = PktRx.BtnIndx;
+            if(PktRx.DW32[0] == 0xCA115EA1 and PktRx.DW32[1] == 0x0BE17C11) {
+                EvtMsg_t Msg(evtIdRadioCmd);
                 EvtQMain.SendNowOrExit(Msg);
             }
 //            Printf("Clr: %u %u %u; Btn: %u; Rssi: %d\r", PktRx.R, PktRx.G, PktRx.B, PktRx.BtnIndx, Rssi);
@@ -68,7 +64,7 @@ uint8_t rLevel1_t::InitCC() {
     if(CC.Init() == retvOk) {
         CC.SetPktSize(RPKT_LEN);
         CC.DoIdleAfterTx();
-        CC.SetChannel(RCHNL_EACH_OTH);
+        CC.SetChannel(0);
         CC.SetTxPower(CC_Pwr0dBm);
         CC.SetBitrate(CCBitrate100k);
         CCIsInitialized = true;
@@ -99,7 +95,7 @@ uint8_t rLevel1_t::InitAndRxOnce() {
         CC.Recalibrate();
         uint8_t Rslt = CC.Receive(27, &PktRx, RPKT_LEN, &Rssi);
         CC.PowerOff();
-        if(Rslt == retvOk and PktRx.Sign == 0xCA115EA1 and PktRx.BtnIndx < 7) return retvOk;
+        if(Rslt == retvOk and PktRx.DW32[0] == 0xCA115EA1 and PktRx.DW32[1] == 0x0BE17C11) return retvOk;
     }
     return retvFail;
 }
