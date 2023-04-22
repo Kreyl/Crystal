@@ -9,7 +9,7 @@
 #define BOARD_H__
 
 // ==== General ====
-#define APP_NAME            "CrystalFlickerByFlute"
+#define APP_NAME            "FlowerOffByRadio"
 
 #ifndef TRUE
 #define TRUE    1
