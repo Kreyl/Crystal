@@ -28,16 +28,16 @@ bool IsEnteringSleep = false;
 #endif
 
 #if 1 // === ADC ===
-extern Adc_t Adc;
-void OnMeasurementDone();
+//extern Adc_t Adc;
+//void OnMeasurementDone();
 TmrKL_t TmrOneS {TIME_MS2I(999), evtIdEverySecond, tktPeriodic};
-int32_t DelayBeforeOffByRadio = 0;
 #endif
 
 #if 1 // ======================== LEDs related =================================
+// Warm white, yellow, red, blue
 const EffSettings_t EffSettings[7] = {
      //  Off     On       Smooth     Color1 H    Color2 H
-        {9, 45,  9, 54,   450, 720,     0, 360,     0,  360},
+        {9, 45,  9, 54,   450, 720,     0, 4,     0,  4},
         {9, 45,  9, 54,   270, 630,   161, 195,    50,  77}, // 1 Grig
         {9, 45,  9, 54,   108, 360,     0,  15,   250, 270}, // 2 tango
         {9, 45,  9, 54,   405, 630,    80, 160,   260, 290}, // 3 waltz
@@ -91,7 +91,6 @@ int main(void) {
             EnterSleepNow();
             chSysUnlock();
         }
-        DelayBeforeOffByRadio = 4;
     }
 
     // Power-on, or radio pkt received => proceed with init
@@ -138,27 +137,27 @@ void ITask() {
 //                break;
 
             case evtIdRadioCmd:
-                Printf("RCmd\r");
-                if(DelayBeforeOffByRadio <= 0) CrystalLeds::Off();
+                Printf("RCmd %u\r", Msg.Value);
+//                if(DelayBeforeOffByRadio <= 0) CrystalLeds::Off();
                 break;
 
             case evtIdEverySecond:
 //                Printf("Second\r");
                 Iwdg::Reload();
-                if(DelayBeforeOffByRadio > 0) DelayBeforeOffByRadio--;
                 if(CrystalLeds::AreOff()) EnterSleep();
                 break;
-
+#if ADC_REQUIRED
             case evtIdAdcRslt:
                 OnMeasurementDone();
                 IsEnteringSleep = false;
                 break;
-
+#endif
             default: break;
         } // switch
     } // while true
 }
 
+/*
 void OnMeasurementDone() {
 //    Printf("%u %u %u\r", Adc.GetResult(0), Adc.GetResult(1), Adc.Adc2mV(Adc.GetResult(0), Adc.GetResult(1)));
     // Calculate voltage
@@ -174,6 +173,7 @@ void OnMeasurementDone() {
     if(Sleep::WakeUpOccured()) EnterSleep();
     else CrystalLeds::On();
 }
+*/
 
 void EnterSleep() {
     Printf("Entering sleep\r");

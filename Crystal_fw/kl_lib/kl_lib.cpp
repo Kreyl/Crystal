@@ -57,6 +57,7 @@ uordblks;  total allocated space
 fordblks;  total non-inuse space
 keepcost;  top-most, releasable (via malloc_trim) space
 **********************************************/
+/*
 void PrintMemoryInfo() {
     struct mallinfo info = mallinfo();
     Printf(
@@ -87,7 +88,7 @@ caddr_t _sbrk(int incr) {
     current_end += incr;
     return (caddr_t)current_block_address;
 }
-
+*/
 #ifdef DMA_MEM2MEM
 static thread_reference_t MemThdRef;
 static void DmaMem2MemIrq(void *p, uint32_t flags) {

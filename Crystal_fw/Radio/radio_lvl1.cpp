@@ -43,18 +43,20 @@ static void rLvl1Thread(void *arg) {
 __noreturn
 void rLevel1_t::ITask() {
     while(true) {
+        chThdSleepMilliseconds(450);
         CC.Recalibrate();
-//        CC.Transmit(&PktTx, RPKT_LEN);
-        uint8_t Rslt = CC.Receive(36, &PktRx, RPKT_LEN, &Rssi);
-        if(Rslt == retvOk) {
-            if(PktRx.DW32[0] == 0xCA115EA1 and PktRx.DW32[1] == 0x0BE17C11) {
-                EvtMsg_t Msg(evtIdRadioCmd);
-                EvtQMain.SendNowOrExit(Msg);
+        // Receive for some time
+        systime_t Start = chVTGetSystemTimeX();
+        do {
+            uint8_t Rslt = CC.Receive(99, &PktRx, RPKT_LEN, &Rssi);
+            if(Rslt == retvOk and PktRx.TheWord == RPKT_SALT) {
+//                PrintfI("ID=%u RSSI=%d ts=%u h=%u t=%u\r", PktRx.ID, Rssi, PktRx.TimeSrc, PktRx.HopCnt, PktRx.iTime);
+                EvtQMain.SendNowOrExit(EvtMsg_t(evtIdRadioCmd, PktRx.Indx));
+                break;
             }
-//            Printf("Clr: %u %u %u; Btn: %u; Rssi: %d\r", PktRx.R, PktRx.G, PktRx.B, PktRx.BtnIndx, Rssi);
-        }
-        CC.PowerOff();
-        chThdSleepMilliseconds(360);
+        } while(chVTTimeElapsedSinceX(Start) < TIME_MS2I(99));
+        // Sleep
+        CC.EnterPwrDown();
     } // while true
 }
 #endif // task
@@ -64,7 +66,7 @@ uint8_t rLevel1_t::InitCC() {
     if(CC.Init() == retvOk) {
         CC.SetPktSize(RPKT_LEN);
         CC.DoIdleAfterTx();
-        CC.SetChannel(0);
+        CC.SetChannel(7);
         CC.SetTxPower(CC_Pwr0dBm);
         CC.SetBitrate(CCBitrate100k);
         CCIsInitialized = true;

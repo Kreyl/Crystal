@@ -13,6 +13,8 @@
 
 #include "shell.h"
 
+#if ADC_REQUIRED
+
 Adc_t Adc;
 const uint8_t AdcChannels[ADC_CHANNEL_CNT] = ADC_CHANNELS;
 
@@ -119,3 +121,5 @@ void Adc_t::Calibrate() {
     ADC1->CR2 |= ADC_CR2_CAL;           // Start calibration
     while(ADC1->CR2 & ADC_CR2_CAL);     // Wait until calibration completed
 }
+
+#endif // if adc required

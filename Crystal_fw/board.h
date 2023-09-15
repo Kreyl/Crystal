@@ -9,7 +9,7 @@
 #define BOARD_H__
 
 // ==== General ====
-#define APP_NAME            "FlowerOffByRadio"
+#define APP_NAME            "LanternForLao"
 
 #ifndef TRUE
 #define TRUE    1
@@ -35,10 +35,10 @@
 
 //  Periphery
 #define I2C1_ENABLED            FALSE
-#define SIMPLESENSORS_ENABLED   TRUE
-#define BUTTONS_ENABLED         TRUE
+#define SIMPLESENSORS_ENABLED   FALSE
+#define BUTTONS_ENABLED         FALSE
 
-#define ADC_REQUIRED            TRUE
+#define ADC_REQUIRED            FALSE
 #define STM32_DMA_REQUIRED      TRUE    // Leave this macro name for OS
 
 #if 1 // ========================== GPIO =======================================

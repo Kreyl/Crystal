@@ -34,6 +34,8 @@ case evtIdAdcRslt: OnMeasurementDone(); break;
 }
 */
 
+#if ADC_REQUIRED
+
 #define ADC_MAX_SEQ_LEN     16  // 1...16; Const, see ref man p.179
 #define VREFINT_mV          1200UL // See datasheet p.36
 #define ADC_MAX_VALUE       4095    // const: 2^12
@@ -79,5 +81,7 @@ public:
 #define ADC_SampleTime_55_5Cycles                    ((uint32_t)0x00000005)
 #define ADC_SampleTime_71_5Cycles                    ((uint32_t)0x00000006)
 #define ADC_SampleTime_239_5Cycles                   ((uint32_t)0x00000007)
+
+#endif // if ADC required
 
 #endif //ADC_F100_H__

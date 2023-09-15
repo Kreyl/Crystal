@@ -72,8 +72,12 @@ static const uint8_t PwrTable[12] = {
 };
 
 #if 1 // =========================== Pkt_t =====================================
-struct rPkt_t {
+union rPkt_t {
     uint32_t DW32[2];
+    struct {
+        int32_t Indx;
+        uint32_t TheWord;
+    } __attribute__((__packed__));
     rPkt_t& operator = (const rPkt_t &Right) {
         DW32[0] = Right.DW32[0];
         DW32[1] = Right.DW32[1];
@@ -83,6 +87,7 @@ struct rPkt_t {
 #endif
 
 #define RPKT_LEN    sizeof(rPkt_t)
+#define RPKT_SALT   0xCa110FEa
 
 #if 1 // =================== Channels, cycles, Rssi  ===========================
 #define RCHNL_EACH_OTH  7
