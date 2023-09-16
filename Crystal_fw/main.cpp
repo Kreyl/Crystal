@@ -27,49 +27,37 @@ static void EnterSleep();
 bool IsEnteringSleep = false;
 #endif
 
-#if 1 // === ADC ===
 //extern Adc_t Adc;
 //void OnMeasurementDone();
 TmrKL_t TmrOneS {TIME_MS2I(999), evtIdEverySecond, tktPeriodic};
-#endif
+uint32_t RadioTimeout_s = 4;
 
 #if 1 // ======================== LEDs related =================================
+#define V_NONE      0
+#define V_OFF       1
+#define V_ON        2
+#define V_MODE_0    0
+#define V_MODE_1    1
+#define V_MODE_2    2
+#define V_MODE_3    3
+
+#define SETTINGS_CNT    4
 // Warm white, yellow, red, blue
-const EffSettings_t EffSettings[7] = {
-     //  Off     On       Smooth     Color1 H    Color2 H
-        {9, 45,  9, 54,   450, 720,     0, 4,     0,  4},
-        {9, 45,  9, 54,   270, 630,   161, 195,    50,  77}, // 1 Grig
-        {9, 45,  9, 54,   108, 360,     0,  15,   250, 270}, // 2 tango
-        {9, 45,  9, 54,   405, 630,    80, 160,   260, 290}, // 3 waltz
-        {9, 45, 99, 99,   108, 810,     0,   7,   353, 360}, // 4 valkirie
-        {9, 45, 99, 99,   108, 630,   225, 250,   250, 265}, // 5 dance
-        {9, 45,  9, 54,   270, 405,   120, 270,    50,  77}, // 6
+EffSettings_t EffSettings[SETTINGS_CNT] = {
+     //  Off     On       Smooth     Color H    MinBrt  Saturation
+        {45, 108,  45, 108,   108, 360,     0,   0,   0,      0},
+        {9, 45,  9, 54,   450, 720,     0,   1,   0,    100}, // 1 Red
+        {9, 45,  9, 54,   270, 630,    45,  72,   0,    100}, // 2 Yellow
+        {9, 45,  9, 54,   405, 630,   240, 240,   0,    100}, // 3 Blue
 };
 
-const EffSettings_t *PCurrSettings = &EffSettings[0];
+EffSettings_t *PCurrSettings = &EffSettings[0];
 #endif
 
 int main(void) {
-#if 0 // ==== Get source of wakeup ====
-    rccEnablePWRInterface(FALSE);
-    if(PWR->CSR & PWR_CSR_WUF) { // Wakeup occured
-        // Is it button?
-        PinSetupInput(BTN1_PIN, pudPullDown);
-        if(Btn1IsPressed()) {
-            // Check if pressed long enough
-            for(uint32_t i=0; i<540000; i++) {
-                // Go sleep if btn released too fast
-                if(!Btn1IsPressed()) EnterSleepNow();
-            }
-            // Btn was keeped in pressed state long enough, proceed with powerOn
-        }
-    }
-#endif
-
 #if 1 // ==== Iwdg, Clk, Os, EvtQ, Uart ====
     // Start Watchdog. Will reset in main thread by periodic 1 sec events.
     Iwdg::InitAndStart(4500);
-    Iwdg::DisableInDebug();
     Clk.UpdateFreqValues();
     // Init OS
     halInit();
@@ -82,10 +70,10 @@ int main(void) {
     Uart.Init();
     // Remap pins: disable JTAG leaving SWD, T3C2 at PB5, T2C3&4 at PB10&11, USART1 at PB6/7
     AFIO->MAPR = (0b010UL << 24) | (0b10UL << 10) | (0b10UL << 8) | AFIO_MAPR_USART1_REMAP;
-
     // Check if was in standby
     rccEnablePWRInterface(FALSE);
     if(Sleep::WasInStandby()) { // Was in standby => is sleeping; check radio
+        Printf(".");
         if(Radio.InitAndRxOnce() != retvOk) { // Noone here
             chSysLock();
             EnterSleepNow();
@@ -97,21 +85,8 @@ int main(void) {
     Printf("\r%S %S\r", APP_NAME, XSTRINGIFY(BUILD_TIME));
     Clk.PrintFreqs();
 
-    // LEDs
     CrystalLeds::Init();
-
-    // Wait until main button released
-//    while(Btn1IsPressed()) { chThdSleepMilliseconds(63); }
-//    SimpleSensors::Init(); // Buttons
-
-    // Battery measurement
-//    PinSetupAnalog(ADC_BAT_PIN);
-//    PinSetupOut(ADC_BAT_EN, omPushPull);
-//    PinSetHi(ADC_BAT_EN);
-//    Adc.Init();
-
     Radio.Init();
-
     TmrOneS.StartOrRestart();
 
     // Main cycle
@@ -128,30 +103,27 @@ void ITask() {
                 ((Shell_t*)Msg.Ptr)->SignalCmdProcessed();
                 break;
 
-//            case evtIdButtons:
-//                Printf("Btn %u %u\r", Msg.BtnEvtInfo.BtnID, Msg.BtnEvtInfo.Type);
-//                // Main button == BTN1
-//                if(Msg.BtnEvtInfo.BtnID == 0) {
-//                    Adc.StartMeasurement();
-//                }
-//                break;
-
             case evtIdRadioCmd:
-                Printf("RCmd %u\r", Msg.Value);
-//                if(DelayBeforeOffByRadio <= 0) CrystalLeds::Off();
+                Printf("RCmd %d %d\r", Msg.ValueID, Msg.Value);
+                if(Msg.ValueID == V_OFF) {
+                    CrystalLeds::Off();
+                    RadioTimeout_s = 4;
+                }
+                else if(Msg.ValueID == V_ON and Msg.Value < SETTINGS_CNT and PCurrSettings != &EffSettings[Msg.Value]) {
+                    PCurrSettings = &EffSettings[Msg.Value];
+                    CrystalLeds::On();
+                }
                 break;
 
             case evtIdEverySecond:
 //                Printf("Second\r");
                 Iwdg::Reload();
-                if(CrystalLeds::AreOff()) EnterSleep();
+                if(CrystalLeds::AreOff()) {
+                    if(RadioTimeout_s > 0) RadioTimeout_s--;
+                    else EnterSleep();
+                }
                 break;
-#if ADC_REQUIRED
-            case evtIdAdcRslt:
-                OnMeasurementDone();
-                IsEnteringSleep = false;
-                break;
-#endif
+
             default: break;
         } // switch
     } // while true
@@ -199,18 +171,32 @@ void OnCmd(Shell_t *PShell) {
     else if(PCmd->NameIs("N")) {
         uint8_t N;
         if(PCmd->GetNext<uint8_t>(&N) == retvOk) {
+            BKP->DR1 = N;
             if(N <= 7) {
                 PCurrSettings = &EffSettings[N];
                 PShell->Ok();
             }
             else PShell->BadParam();
         }
-//            if(PCmd->GetClrRGB(&Clr) == retvOk) {
-//                if(N > 3) for(auto &Led : Leds) Led.SetColor(Clr);
-//                else Leds[N].SetColor(Clr);
-//            }
-//            else PShell->BadParam();
-//        }
+        else PShell->BadParam();
+    }
+
+    else if(PCmd->NameIs("HSM")) {
+        uint32_t H, S, MinBrt, Smooth1, Smooth2;
+        if(         PCmd->GetNext(&H) == retvOk
+                and PCmd->GetNext(&S) == retvOk
+                and PCmd->GetNext(&MinBrt) == retvOk
+                and PCmd->GetNext(&Smooth1) == retvOk
+                and PCmd->GetNext(&Smooth2) == retvOk
+                ) {
+            PCurrSettings->ClrHMax = H;
+            PCurrSettings->ClrHMax = H;
+            PCurrSettings->Saturation = S;
+            PCurrSettings->MinBrt = MinBrt;
+            PCurrSettings->SmoothMin = Smooth1;
+            PCurrSettings->SmoothMax = Smooth2;
+            PShell->Ok();
+        }
         else PShell->BadParam();
     }
 

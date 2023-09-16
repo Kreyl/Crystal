@@ -51,7 +51,7 @@ void rLevel1_t::ITask() {
             uint8_t Rslt = CC.Receive(99, &PktRx, RPKT_LEN, &Rssi);
             if(Rslt == retvOk and PktRx.TheWord == RPKT_SALT) {
 //                PrintfI("ID=%u RSSI=%d ts=%u h=%u t=%u\r", PktRx.ID, Rssi, PktRx.TimeSrc, PktRx.HopCnt, PktRx.iTime);
-                EvtQMain.SendNowOrExit(EvtMsg_t(evtIdRadioCmd, PktRx.Indx));
+                EvtQMain.SendNowOrExit(EvtMsg_t(evtIdRadioCmd, PktRx.OnOff, PktRx.EffIndx));
                 break;
             }
         } while(chVTTimeElapsedSinceX(Start) < TIME_MS2I(99));
@@ -95,9 +95,9 @@ uint8_t rLevel1_t::Init() {
 uint8_t rLevel1_t::InitAndRxOnce() {
     if(InitCC() == retvOk) {
         CC.Recalibrate();
-        uint8_t Rslt = CC.Receive(27, &PktRx, RPKT_LEN, &Rssi);
+        uint8_t Rslt = CC.Receive(36, &PktRx, RPKT_LEN, &Rssi);
         CC.PowerOff();
-        if(Rslt == retvOk and PktRx.DW32[0] == 0xCA115EA1 and PktRx.DW32[1] == 0x0BE17C11) return retvOk;
+        if(Rslt == retvOk and PktRx.TheWord == RPKT_SALT) return retvOk;
     }
     return retvFail;
 }

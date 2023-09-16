@@ -41,8 +41,9 @@ public:
 
     void Generate() {
         PCurrSettings->Generate(&DurationOff, &DurationOn, &Smooth, &IClrTarget.H);
+        IClrTarget.S = PCurrSettings->Saturation;
         IClrCurr = IClrTarget;
-        IClrCurr.V = 0;
+        IClrCurr.V = PCurrSettings->MinBrt;
         IClrPrev = IClrCurr;
         ITmr = ClrCalcDelay(IClrCurr.V, Smooth);
     }
@@ -98,7 +99,7 @@ public:
 
                 case staFadeOut:
                     // Check if FadeOut done
-                    if(IClrCurr.V == 0) {
+                    if(IClrCurr.V <= PCurrSettings->MinBrt) {
                         IState = staIdle;
                         ITmr = DurationOff;
                     }
@@ -130,8 +131,7 @@ void EffSettings_t::Generate(
     *PDurationOff = Random::Generate(DurMinOff, DurMaxOff);
     *PDurationOn  = Random::Generate(DurMinOn, DurMaxOn);
     *PSmooth      = Random::Generate(SmoothMin, SmoothMax);
-    if(Random::Generate(0, 1) == 0) *PClrH = Random::Generate(Clr1HMin, Clr1HMax);
-    else                            *PClrH = Random::Generate(Clr2HMin, Clr2HMax);
+    *PClrH        = Random::Generate(ClrHMin, ClrHMax);
 }
 
 static THD_WORKING_AREA(waEffThread, 128);

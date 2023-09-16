@@ -376,8 +376,8 @@ static inline void DelayLoop(volatile uint32_t ACounter) { while(ACounter--); }
 namespace BackupSpc {
     static inline void EnableAccess() {
         rccEnablePWRInterface(FALSE);
-#if defined STM32F2XX || defined STM32F4XX || defined STM32F10X_LD_VL
-        rccEnableBKPSRAM(FALSE);
+#if defined STM32F2XX || defined STM32F4XX || defined STM32F1XX
+        RCC->APB1ENR |= RCC_APB1ENR_BKPEN;
         PWR->CR |= PWR_CR_DBP;
 #elif defined STM32L4XX || defined STM32F7XX
         PWR->CR1 |= PWR_CR1_DBP;
@@ -414,7 +414,7 @@ namespace BackupSpc {
 
 #if 1 // ============================= RTC =====================================
 namespace Rtc {
-#if defined STM32F10X_LD_VL
+#if defined STM32F1XX
 // Wait until the RTC registers (RTC_CNT, RTC_ALR and RTC_PRL) are synchronized with RTC APB clock.
 // Required after an APB reset or an APB clock stop.
 static inline void WaitForSync() {
@@ -426,20 +426,20 @@ static inline void WaitForSync() {
 // This function must be called before any write to RTC registers.
 static inline void WaitForLastTask() { while((RTC->CRL & RTC_CRL_RTOFF) == 0); }
 
-static inline void SetPrescaler(uint32_t PrescalerValue) {
-    EnterConfigMode();
-    RTC->PRLH = (PrescalerValue & PRLH_MSB_MASK) >> 16;
-    RTC->PRLL = (PrescalerValue & RTC_LSB_MASK);
-    ExitConfigMode();
-}
-
 static inline void EnterConfigMode() { RTC->CRL |= RTC_CRL_CNF; }
 static inline void ExitConfigMode()  { RTC->CRL &= ~((uint16_t)RTC_CRL_CNF); }
+
+static inline void SetPrescaler(uint32_t PrescalerValue) {
+    EnterConfigMode();
+//    RTC->PRLH = (PrescalerValue & PRLH_MSB_MASK) >> 16;
+//    RTC->PRLL = (PrescalerValue & RTC_LSB_MASK);
+    ExitConfigMode();
+}
 
 static inline void SetCounter(uint32_t CounterValue) {
     EnterConfigMode();
     RTC->CNTH = CounterValue >> 16;
-    RTC->CNTL = (CounterValue & RTC_LSB_MASK);
+//    RTC->CNTL = (CounterValue & RTC_LSB_MASK);
     ExitConfigMode();
 }
 #elif defined STM32F072xB || defined STM32L4XX || defined STM32F7XX
@@ -470,7 +470,7 @@ static inline void SetClkSrcLSE() {
 }
 
 static inline void EnableClk() {
-#if defined STM32L4XX || defined STM32F7XX
+#if defined STM32L4XX || defined STM32F7XX || defined STM32F1XX
     RCC->BDCR |= RCC_BDCR_RTCEN;
 #endif
 }
