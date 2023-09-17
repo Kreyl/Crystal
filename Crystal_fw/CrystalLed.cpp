@@ -20,12 +20,13 @@ private:
     uint32_t Smooth;
     int32_t ITmr;
     // Led settings
-    ColorHSV_t IClrPrev, IClrTarget{0, 100, 100};
+    Color_t IClrTarget{0, 255, 0};
     uint32_t IClrDelay;
     // PWM
     const PinOutputPWM_t  R, G, B;
 public:
-    ColorHSV_t IClrCurr;
+    Color_t IClrCurr;
+    uint32_t CurrBrt = 0;
 
     Lipte_t(
         const PwmSetup_t ARed, const PwmSetup_t AGreen, const PwmSetup_t ABlue) :
@@ -40,12 +41,14 @@ public:
     }
 
     void Generate() {
-        PCurrSettings->Generate(&DurationOff, &DurationOn, &Smooth, &IClrTarget.H);
-        IClrTarget.S = PCurrSettings->Saturation;
+        PCurrSettings->Generate(&DurationOff, &DurationOn, &Smooth);
+        IClrTarget = PCurrSettings->Clr;
+        CurrBrt = PCurrSettings->MinBrt;
         IClrCurr = IClrTarget;
-        IClrCurr.V = PCurrSettings->MinBrt;
-        IClrPrev = IClrCurr;
-        ITmr = ClrCalcDelay(IClrCurr.V, Smooth);
+        IClrCurr.SetRGBBrightness(CurrBrt, 255);
+
+//        IClrTarget.Print();
+        ITmr = ClrCalcDelay(CurrBrt, Smooth);
     }
 
     void SetColor(Color_t AColor) {
@@ -58,14 +61,14 @@ public:
     void Off() { IsOn = false; }
     bool IsIdle() { return (IState == staIdle and !IsOn); }
 
-    void StopAndSetHsv(ColorHSV_t hsv) {
-        chSysLock();
-        IsOn = false;
-        IState = staIdle;
-        ITmr = 0;
-        SetColor(hsv.ToRGB());
-        chSysUnlock();
-    }
+//    void StopAndSetHsv(ColorHSV_t hsv) {
+//        chSysLock();
+//        IsOn = false;
+//        IState = staIdle;
+//        ITmr = 0;
+//        SetColor(hsv.ToRGB());
+//        chSysUnlock();
+//    }
 
     void OnTick() {
         chSysLock();
@@ -77,43 +80,45 @@ public:
                         IState = staFadeIn;
                         Generate();
                     }
+                    else if(CurrBrt > 0) CurrBrt--;
                     break;
 
                 case staFadeIn:
                     // Check if FadeIn done
-                    if(IClrCurr == IClrTarget) {
+                    if(CurrBrt >= 255) {
                         IState = staOn;
                         ITmr = DurationOn;
                     }
                     // Not done
                     else {
-                        IClrCurr.V++;
-                        ITmr = ClrCalcDelay(IClrCurr.V, Smooth);
+                        CurrBrt++;
+                        ITmr = ClrCalcDelay(CurrBrt, Smooth);
                     }
                     break;
 
                 case staOn:
                     IState = staFadeOut;
-                    ITmr = ClrCalcDelay(IClrCurr.V, Smooth);
+                    ITmr = ClrCalcDelay(CurrBrt, Smooth);
                     break;
 
                 case staFadeOut:
                     // Check if FadeOut done
-                    if(IClrCurr.V <= PCurrSettings->MinBrt) {
+                    if(CurrBrt <= PCurrSettings->MinBrt) {
                         IState = staIdle;
                         ITmr = DurationOff;
                     }
                     // Not done
                     else {
-                        IClrCurr.V--;
-                        ITmr = ClrCalcDelay(IClrCurr.V, Smooth);
+                        CurrBrt--;
+                        ITmr = ClrCalcDelay(CurrBrt, Smooth);
                     }
                     break;
             } // switch
         } // if tmr <= 0
         // Set new color if has changed
-        if(IClrCurr != IClrPrev) SetColor(IClrCurr.ToRGB());
-        IClrPrev = IClrCurr;
+        IClrCurr = IClrTarget;
+        IClrCurr.SetRGBBrightness(CurrBrt, 255);
+        SetColor(IClrCurr);
         chSysUnlock();
     }
 };
@@ -125,13 +130,10 @@ Lipte_t Lipti[LED_CNT] = {
         {LED4_R, LED4_G, LED4_B},
 };
 
-void EffSettings_t::Generate(
-        uint32_t *PDurationOff, uint32_t *PDurationOn,
-        uint32_t *PSmooth, uint16_t *PClrH) const {
+void EffSettings_t::Generate(uint32_t *PDurationOff, uint32_t *PDurationOn, uint32_t *PSmooth) const {
     *PDurationOff = Random::Generate(DurMinOff, DurMaxOff);
-    *PDurationOn  = Random::Generate(DurMinOn, DurMaxOn);
+    *PDurationOn  = Random::Generate(DurMinOn,  DurMaxOn);
     *PSmooth      = Random::Generate(SmoothMin, SmoothMax);
-    *PClrH        = Random::Generate(ClrHMin, ClrHMax);
 }
 
 static THD_WORKING_AREA(waEffThread, 128);
@@ -164,13 +166,13 @@ void Off() {
 
 bool AreOff() {
     for(auto &Lipte : Lipti) {
-        if(!Lipte.IsIdle()) return false;
+        if(Lipte.CurrBrt != 0) return false;
     }
     return true;
 }
 
-void SetAllHsv(ColorHSV_t hsv) {
-    for(auto &Lipte : Lipti) Lipte.StopAndSetHsv(hsv);
-}
+//void SetAllHsv(ColorHSV_t hsv) {
+//    for(auto &Lipte : Lipti) Lipte.StopAndSetHsv(hsv);
+//}
 
 } // namespace

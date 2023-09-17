@@ -16,20 +16,18 @@ struct EffSettings_t {
     uint32_t DurMinOff, DurMaxOff;
     uint32_t DurMinOn,  DurMaxOn;
     uint32_t SmoothMin, SmoothMax;
-    uint16_t ClrHMin, ClrHMax;
-    uint32_t MinBrt, Saturation;
+    Color_t Clr;
+    uint32_t MinBrt;
     EffSettings_t(
             uint32_t ADurMinOff, uint32_t ADurMaxOff, uint32_t ADurMinOn, uint32_t ADurMaxOn,
             uint32_t SmMin, uint32_t SmMax,
-            uint16_t AClrHMin, uint16_t AClrHMax,
-            uint32_t AMinBrt, uint8_t ASaturation
+            Color_t AClr, uint32_t AMinBrt
             ) :
                 DurMinOff(ADurMinOff), DurMaxOff(ADurMaxOff), DurMinOn(ADurMinOn), DurMaxOn(ADurMaxOn),
                 SmoothMin(SmMin), SmoothMax(SmMax),
-                ClrHMin(AClrHMin), ClrHMax(AClrHMax),
-                MinBrt(AMinBrt), Saturation(ASaturation)
+                Clr(AClr), MinBrt(AMinBrt)
                 {}
-    void Generate(uint32_t *DurationOff, uint32_t *DurationOn, uint32_t *Smooth, uint16_t *ClrH) const;
+    void Generate(uint32_t *DurationOff, uint32_t *DurationOn, uint32_t *Smooth) const;
 };
 
 

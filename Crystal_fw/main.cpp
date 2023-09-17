@@ -44,11 +44,11 @@ uint32_t RadioTimeout_s = 4;
 #define SETTINGS_CNT    4
 // Warm white, yellow, red, blue
 EffSettings_t EffSettings[SETTINGS_CNT] = {
-     //  Off     On       Smooth     Color H    MinBrt  Saturation
-        {45, 108,  45, 108,   108, 360,     0,   0,   0,      0},
-        {9, 45,  9, 54,   450, 720,     0,   1,   0,    100}, // 1 Red
-        {9, 45,  9, 54,   270, 630,    45,  72,   0,    100}, // 2 Yellow
-        {9, 45,  9, 54,   405, 630,   240, 240,   0,    100}, // 3 Blue
+        //  Off      On        Smooth       Color        MinBrt
+        {45, 108,  45, 108,   270, 450, {255, 130,  50},  100},
+        {45, 108,  45, 108,   270, 450, {255,   0,   0},   50}, // 1 Red
+        {45, 108,  45, 108,   270, 450, {255,  72,   0},  100}, // 2 Yellow
+        {45, 108,  45, 108,   270, 450, {  0,   0, 255},   50}, // 3 Blue
 };
 
 EffSettings_t *PCurrSettings = &EffSettings[0];
@@ -182,16 +182,14 @@ void OnCmd(Shell_t *PShell) {
     }
 
     else if(PCmd->NameIs("HSM")) {
-        uint32_t H, S, MinBrt, Smooth1, Smooth2;
-        if(         PCmd->GetNext(&H) == retvOk
-                and PCmd->GetNext(&S) == retvOk
+        uint32_t MinBrt, Smooth1, Smooth2;
+        Color_t Clr;
+        if(         PCmd->GetClrRGB(&Clr) == retvOk
                 and PCmd->GetNext(&MinBrt) == retvOk
                 and PCmd->GetNext(&Smooth1) == retvOk
                 and PCmd->GetNext(&Smooth2) == retvOk
                 ) {
-            PCurrSettings->ClrHMax = H;
-            PCurrSettings->ClrHMax = H;
-            PCurrSettings->Saturation = S;
+            PCurrSettings->Clr = Clr;
             PCurrSettings->MinBrt = MinBrt;
             PCurrSettings->SmoothMin = Smooth1;
             PCurrSettings->SmoothMax = Smooth2;
