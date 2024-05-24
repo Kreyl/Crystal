@@ -23,7 +23,7 @@ SECTIONS
         KEEP(*(.vectors))
     } > VECTORS_FLASH AT > VECTORS_FLASH_LMA
 
-    .xtors : ALIGN(4)
+    .xtors (READONLY) : ALIGN(4)
     {
         __init_array_start = .;
         KEEP(*(SORT(.init_array.*)))

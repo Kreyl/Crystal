@@ -871,7 +871,6 @@ static inline void PinSetupInput(
         const uint16_t PinN,
         const PinPullUpDown_t PullUpDown,
         const PinSpeed_t ASpeed = PIN_SPEED_DEFAULT) {
-    __unused uint8_t Offset = PinN*2;
     // Clock
     PinClockEnable(PGpio);
 #if defined STM32F1XX
@@ -893,6 +892,7 @@ static inline void PinSetupInput(
             PGpio->CRH |= CnfMode << Offset;
         }
 #else
+        uint8_t Offset = PinN*2;
         // Setup mode
         PGpio->MODER &= ~(0b11 << Offset); // clear previous bits
         // Setup Pull-Up or Pull-Down

@@ -49,7 +49,7 @@ const EffSettings_t EffSettings[7] = {
 const EffSettings_t *PCurrSettings = &EffSettings[0];
 #endif
 
-int main(void) {
+void main(void) {
 #if 0 // ==== Get source of wakeup ====
     rccEnablePWRInterface(FALSE);
     if(PWR->CSR & PWR_CSR_WUF) { // Wakeup occured
