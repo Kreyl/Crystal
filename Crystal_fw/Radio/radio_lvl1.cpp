@@ -47,10 +47,8 @@ void rLevel1_t::ITask() {
 //        CC.Transmit(&PktTx, RPKT_LEN);
         uint8_t Rslt = CC.Receive(36, &PktRx, RPKT_LEN, &Rssi);
         if(Rslt == retvOk) {
-            if(PktRx.DW32[0] == 0xCA115EA1 and PktRx.DW32[1] == 0x0BE17C11) {
-                EvtMsg_t Msg(evtIdRadioCmd);
-                EvtQMain.SendNowOrExit(Msg);
-            }
+            if(PktRx.salt == 0xCa110fEa) EvtQMain.SendNowOrExit(EvtMsg_t(evtIdRadioCmd, PktRx.H));
+            Printf("H: %u; Rssi: %d\r", PktRx.H, Rssi);
 //            Printf("Clr: %u %u %u; Btn: %u; Rssi: %d\r", PktRx.R, PktRx.G, PktRx.B, PktRx.BtnIndx, Rssi);
         }
         CC.PowerOff();

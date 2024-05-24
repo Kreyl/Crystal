@@ -10,26 +10,16 @@
 #include "uart.h"
 #include "ch.h"
 
-extern const EffSettings_t *PCurrSettings;
+static ColorHSV_t curr_clr{0, 100, 100}, target_clr{0, 100, 100};
+static const uint32_t ksmooth = 450;
+static virtual_timer_t itmr;
 
 class Lipte_t {
 private:
-    enum {staIdle, staFadeIn, staOn, staFadeOut} IState = staFadeIn;
-    bool IsOn = true;
-    uint32_t DurationOff, DurationOn;
-    uint32_t Smooth;
-    int32_t ITmr;
-    // Led settings
-    ColorHSV_t IClrPrev, IClrTarget{0, 100, 100};
-    uint32_t IClrDelay;
-    // PWM
     const PinOutputPWM_t  R, G, B;
 public:
-    ColorHSV_t IClrCurr;
-
     Lipte_t(
         const PwmSetup_t ARed, const PwmSetup_t AGreen, const PwmSetup_t ABlue) :
-            DurationOff(0), DurationOn(0), Smooth(0), ITmr(0), IClrDelay(0),
             R(ARed), G(AGreen), B(ABlue) {}
 
     void Init() {
@@ -39,80 +29,15 @@ public:
         SetColor(clBlack);
     }
 
-    void Generate() {
-        PCurrSettings->Generate(&DurationOff, &DurationOn, &Smooth, &IClrTarget.H);
-        IClrCurr = IClrTarget;
-        IClrCurr.V = 0;
-        IClrPrev = IClrCurr;
-        ITmr = ClrCalcDelay(IClrCurr.V, Smooth);
-    }
-
     void SetColor(Color_t AColor) {
         R.Set(AColor.R);
         G.Set(AColor.G);
         B.Set(AColor.B);
     }
 
-    void On()  { IsOn = true; }
-    void Off() { IsOn = false; }
-    bool IsIdle() { return (IState == staIdle and !IsOn); }
+    void SetHsv(ColorHSV_t hsv) {
 
-    void StopAndSetHsv(ColorHSV_t hsv) {
-        chSysLock();
-        IsOn = false;
-        IState = staIdle;
-        ITmr = 0;
         SetColor(hsv.ToRGB());
-        chSysUnlock();
-    }
-
-    void OnTick() {
-        chSysLock();
-        if(ITmr > 0) ITmr--;
-        if(ITmr <= 0) {
-            switch(IState) {
-                case staIdle:
-                    if(IsOn) {
-                        IState = staFadeIn;
-                        Generate();
-                    }
-                    break;
-
-                case staFadeIn:
-                    // Check if FadeIn done
-                    if(IClrCurr == IClrTarget) {
-                        IState = staOn;
-                        ITmr = DurationOn;
-                    }
-                    // Not done
-                    else {
-                        IClrCurr.V++;
-                        ITmr = ClrCalcDelay(IClrCurr.V, Smooth);
-                    }
-                    break;
-
-                case staOn:
-                    IState = staFadeOut;
-                    ITmr = ClrCalcDelay(IClrCurr.V, Smooth);
-                    break;
-
-                case staFadeOut:
-                    // Check if FadeOut done
-                    if(IClrCurr.V == 0) {
-                        IState = staIdle;
-                        ITmr = DurationOff;
-                    }
-                    // Not done
-                    else {
-                        IClrCurr.V--;
-                        ITmr = ClrCalcDelay(IClrCurr.V, Smooth);
-                    }
-                    break;
-            } // switch
-        } // if tmr <= 0
-        // Set new color if has changed
-        if(IClrCurr != IClrPrev) SetColor(IClrCurr.ToRGB());
-        IClrPrev = IClrCurr;
         chSysUnlock();
     }
 };
@@ -124,53 +49,27 @@ Lipte_t Lipti[LED_CNT] = {
         {LED4_R, LED4_G, LED4_B},
 };
 
-void EffSettings_t::Generate(
-        uint32_t *PDurationOff, uint32_t *PDurationOn,
-        uint32_t *PSmooth, uint16_t *PClrH) const {
-    *PDurationOff = Random::Generate(DurMinOff, DurMaxOff);
-    *PDurationOn  = Random::Generate(DurMinOn, DurMaxOn);
-    *PSmooth      = Random::Generate(SmoothMin, SmoothMax);
-    if(Random::Generate(0, 1) == 0) *PClrH = Random::Generate(Clr1HMin, Clr1HMax);
-    else                            *PClrH = Random::Generate(Clr2HMin, Clr2HMax);
-}
-
-static THD_WORKING_AREA(waEffThread, 128);
-__noreturn
-static void EffThread(void *arg) {
-    chRegSetThreadName("Eff");
-    while(true) {
-        chThdSleepMilliseconds(1);
-        for(auto &Lipte : Lipti) Lipte.OnTick();
-    } // while true
+static void TmrCallBack(void* p) {
+    curr_clr.Adjust(target_clr);
+    for(auto &Lipte : Lipti) Lipte.SetHsv(curr_clr);
 }
 
 namespace CrystalLeds {
 
 void Init() {
-    for(auto &Lipte : Lipti) {
-        Lipte.Init();
-        Lipte.Generate();
-    }
-    chThdCreateStatic(waEffThread, sizeof(waEffThread), HIGHPRIO, (tfunc_t)EffThread, NULL);
+    for(auto &Lipte : Lipti) Lipte.Init();
 }
 
-void On() {
-    for(auto &Lipte : Lipti) Lipte.On();
+void SetHsvNow(ColorHSV_t hsv) {
+    chVTReset(&itmr);
+    for(auto &Lipte : Lipti) Lipte.SetHsv(hsv);
+    curr_clr = hsv;
 }
 
-void Off() {
-    for(auto &Lipte : Lipti) Lipte.Off();
-}
-
-bool AreOff() {
-    for(auto &Lipte : Lipti) {
-        if(!Lipte.IsIdle()) return false;
-    }
-    return true;
-}
-
-void SetAllHsv(ColorHSV_t hsv) {
-    for(auto &Lipte : Lipti) Lipte.StopAndSetHsv(hsv);
+void SetHsvSmoothly(ColorHSV_t hsv) {
+    chVTReset(&itmr);
+    target_clr = hsv;
+    if(hsv != curr_clr) chVTSet(&itmr, 45, TmrCallBack, nullptr);
 }
 
 } // namespace

@@ -19,34 +19,11 @@ static const UartParams_t CmdUartParams(115200, CMD_UART_PARAMS);
 CmdUart_t Uart{&CmdUartParams};
 void OnCmd(Shell_t *PShell);
 void ITask();
-//IWDG_t Iwdg;
 
-bool Btn1IsPressed() { return PinIsHi(BTN1_PIN); }
-static void EnterSleepNow();
-static void EnterSleep();
-bool IsEnteringSleep = false;
-#endif
+ColorHSV_t ordinal_clr = {300, 100, 100}; // Magenta
+ColorHSV_t choosen_clr = {240, 100, 100}; // Blue, to start with red
 
-#if 1 // === ADC ===
-extern Adc_t Adc;
-void OnMeasurementDone();
 TmrKL_t TmrOneS {TIME_MS2I(999), evtIdEverySecond, tktPeriodic};
-int32_t DelayBeforeOffByRadio = 0;
-#endif
-
-#if 1 // ======================== LEDs related =================================
-const EffSettings_t EffSettings[7] = {
-     //  Off     On       Smooth     Color1 H    Color2 H
-        {9, 45,  9, 54,   450, 720,     0, 360,     0,  360},
-        {9, 45,  9, 54,   270, 630,   161, 195,    50,  77}, // 1 Grig
-        {9, 45,  9, 54,   108, 360,     0,  15,   250, 270}, // 2 tango
-        {9, 45,  9, 54,   405, 630,    80, 160,   260, 290}, // 3 waltz
-        {9, 45, 99, 99,   108, 810,     0,   7,   353, 360}, // 4 valkirie
-        {9, 45, 99, 99,   108, 630,   225, 250,   250, 265}, // 5 dance
-        {9, 45,  9, 54,   270, 405,   120, 270,    50,  77}, // 6
-};
-
-const EffSettings_t *PCurrSettings = &EffSettings[0];
 #endif
 
 void main(void) {
@@ -82,37 +59,12 @@ void main(void) {
     Uart.Init();
     // Remap pins: disable JTAG leaving SWD, T3C2 at PB5, T2C3&4 at PB10&11, USART1 at PB6/7
     AFIO->MAPR = (0b010UL << 24) | (0b10UL << 10) | (0b10UL << 8) | AFIO_MAPR_USART1_REMAP;
-
-    // Check if was in standby
-    rccEnablePWRInterface(FALSE);
-    if(Sleep::WasInStandby()) { // Was in standby => is sleeping; check radio
-        if(Radio.InitAndRxOnce() != retvOk) { // Noone here
-            chSysLock();
-            EnterSleepNow();
-            chSysUnlock();
-        }
-        DelayBeforeOffByRadio = 4;
-    }
-
     // Power-on, or radio pkt received => proceed with init
     Printf("\r%S %S\r", APP_NAME, XSTRINGIFY(BUILD_TIME));
     Clk.PrintFreqs();
 
-    // LEDs
     CrystalLeds::Init();
-
-    // Wait until main button released
-//    while(Btn1IsPressed()) { chThdSleepMilliseconds(63); }
-//    SimpleSensors::Init(); // Buttons
-
-    // Battery measurement
-//    PinSetupAnalog(ADC_BAT_PIN);
-//    PinSetupOut(ADC_BAT_EN, omPushPull);
-//    PinSetHi(ADC_BAT_EN);
-//    Adc.Init();
-
     Radio.Init();
-
     TmrOneS.StartOrRestart();
 
     // Main cycle
@@ -129,64 +81,42 @@ void ITask() {
                 ((Shell_t*)Msg.Ptr)->SignalCmdProcessed();
                 break;
 
-//            case evtIdButtons:
-//                Printf("Btn %u %u\r", Msg.BtnEvtInfo.BtnID, Msg.BtnEvtInfo.Type);
-//                // Main button == BTN1
-//                if(Msg.BtnEvtInfo.BtnID == 0) {
-//                    Adc.StartMeasurement();
-//                }
-//                break;
+            case evtIdButtons:
+                Printf("Btn %u %u\r", Msg.BtnEvtInfo.BtnID, Msg.BtnEvtInfo.Type);
+                if(Msg.BtnEvtInfo.BtnID == 0 and (Msg.BtnEvtInfo.Type == beShortPress or Msg.BtnEvtInfo.Type == beRepeat)) {
+                    ordinal_clr.H++;
+                    if(ordinal_clr.H >= CLR_HSV_H_MAX) ordinal_clr.H = 0;
+                    CrystalLeds::SetHsvNow(ordinal_clr);
+                }
+                else if(Msg.BtnEvtInfo.BtnID == 1 and (Msg.BtnEvtInfo.Type == beShortPress or Msg.BtnEvtInfo.Type == beRepeat)) {
+                    if(ordinal_clr.H == 0) ordinal_clr.H = CLR_HSV_H_MAX;
+                    else ordinal_clr.H--;
+                    CrystalLeds::SetHsvNow(ordinal_clr);
+                }
+                else if(Msg.BtnEvtInfo.BtnID == 2 and Msg.BtnEvtInfo.Type == beShortPress) { // Switch choosen color
+                    if     (choosen_clr.H == 0)   choosen_clr.H = 120; // Red->Green
+                    else if(choosen_clr.H == 120) choosen_clr.H = 240; // Green->Blue
+                    else choosen_clr.H = 0;  // Blue (or whatever) ->Red
+                    ordinal_clr = choosen_clr;
+                    CrystalLeds::SetHsvSmoothly(ordinal_clr);
+                }
+                break;
 
             case evtIdRadioCmd:
                 Printf("RCmd\r");
-                if(DelayBeforeOffByRadio <= 0) CrystalLeds::Off();
+                choosen_clr.H = Msg.Value;
+                ordinal_clr.H = Msg.Value;
+                CrystalLeds::SetHsvSmoothly(ordinal_clr);
                 break;
 
             case evtIdEverySecond:
 //                Printf("Second\r");
                 Iwdg::Reload();
-                if(DelayBeforeOffByRadio > 0) DelayBeforeOffByRadio--;
-                if(CrystalLeds::AreOff()) EnterSleep();
-                break;
-
-            case evtIdAdcRslt:
-                OnMeasurementDone();
-                IsEnteringSleep = false;
                 break;
 
             default: break;
         } // switch
     } // while true
-}
-
-void OnMeasurementDone() {
-//    Printf("%u %u %u\r", Adc.GetResult(0), Adc.GetResult(1), Adc.Adc2mV(Adc.GetResult(0), Adc.GetResult(1)));
-    // Calculate voltage
-    uint32_t VBat = 2 * Adc.Adc2mV(Adc.GetResult(0), Adc.GetResult(1)); // *2 because of resistor divider
-    uint8_t Percent = mV2PercentAlkaline(VBat);
-    Printf("VBat: %umV; Percent: %u\r", VBat, Percent);
-    ColorHSV_t hsv;
-    if     (Percent <= 20) hsv = {0,   100, 100};
-    else if(Percent <  80) hsv = {30,  100, 100};
-    else                   hsv = {120, 100, 100};
-    CrystalLeds::SetAllHsv(hsv);
-    chThdSleepMilliseconds(1530);
-    if(Sleep::WakeUpOccured()) EnterSleep();
-    else CrystalLeds::On();
-}
-
-void EnterSleep() {
-    Printf("Entering sleep\r");
-    chThdSleepMilliseconds(45);
-    chSysLock();
-    EnterSleepNow();
-    chSysUnlock();
-}
-
-void EnterSleepNow() {
-    Sleep::EnableWakeupPin(); // Btn0
-    Sleep::ClearStandbyFlag();
-    Sleep::EnterStandby();
 }
 
 #if 1 // ======================= Command processing ============================
@@ -195,34 +125,6 @@ void OnCmd(Shell_t *PShell) {
     // Handle command
     if(PCmd->NameIs("Ping")) PShell->Ok();
     else if(PCmd->NameIs("Version")) PShell->Print("%S %S\r", APP_NAME, XSTRINGIFY(BUILD_TIME));
-
-    else if(PCmd->NameIs("N")) {
-        uint8_t N;
-        if(PCmd->GetNext<uint8_t>(&N) == retvOk) {
-            if(N <= 7) {
-                PCurrSettings = &EffSettings[N];
-                PShell->Ok();
-            }
-            else PShell->BadParam();
-        }
-//            if(PCmd->GetClrRGB(&Clr) == retvOk) {
-//                if(N > 3) for(auto &Led : Leds) Led.SetColor(Clr);
-//                else Leds[N].SetColor(Clr);
-//            }
-//            else PShell->BadParam();
-//        }
-        else PShell->BadParam();
-    }
-
-    else if(PCmd->NameIs("On")) {
-        CrystalLeds::On();
-        PShell->Ok();
-    }
-
-    else if(PCmd->NameIs("Off")) {
-        CrystalLeds::Off();
-        PShell->Ok();
-    }
 
     else PShell->CmdUnknown();
 }
