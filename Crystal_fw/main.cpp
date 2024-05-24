@@ -20,8 +20,8 @@ CmdUart_t Uart{&CmdUartParams};
 void OnCmd(Shell_t *PShell);
 void ITask();
 
-ColorHSV_t ordinal_clr = {300, 100, 100}; // Magenta
-ColorHSV_t choosen_clr = {240, 100, 100}; // Blue, to start with red
+static ColorHSV_t ordinal_clr = {300, 100, 100}; // Magenta
+static ColorHSV_t choosen_clr = {240, 100, 100}; // Blue, to start with red
 
 TmrKL_t TmrOneS {TIME_MS2I(999), evtIdEverySecond, tktPeriodic};
 #endif
