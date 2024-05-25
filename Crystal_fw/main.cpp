@@ -64,6 +64,8 @@ void main(void) {
     Clk.PrintFreqs();
 
     CrystalLeds::Init();
+    CrystalLeds::SetHsvSmoothly(ordinal_clr);
+    SimpleSensors::Init(); // Buttons
     Radio.Init();
     TmrOneS.StartOrRestart();
 

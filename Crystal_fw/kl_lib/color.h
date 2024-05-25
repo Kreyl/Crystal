@@ -311,8 +311,21 @@ struct ColorHSV_t {
     };
 
     void Adjust(const ColorHSV_t &Target) {
-        if     (H < Target.H) H++;
-        else if(H > Target.H) H--;
+        int32_t dist = (H > Target.H)? H - Target.H : Target.H - H;
+        if(dist <= 180) { // 180 is half of 360. dist < 180 => go classic way
+            if     (H < Target.H) H++;
+            else if(H > Target.H) H--;
+        }
+        else { // go through 360
+            if(H < Target.H) {
+                if(H > 0) H--;
+                else H = 360;
+            }
+            else if(H > Target.H) {
+                if(H < 360) H++;
+                else H = 0;
+            }
+        }
         if     (S < Target.S) S++;
         else if(S > Target.S) S--;
         if     (V < Target.V) V++;

@@ -51,6 +51,7 @@ static const mVPercent_t mVPercentTableAlkaline[] = {
 };
 #define mVPercentTableAlkalineSz    countof(mVPercentTableAlkaline)
 
+__attribute__((unused))
 static uint8_t mV2PercentAlkaline(uint16_t mV) {
     for(uint8_t i=0; i<mVPercentTableAlkalineSz; i++)
         if(mV >= mVPercentTableAlkaline[i].mV) return mVPercentTableAlkaline[i].Percent;

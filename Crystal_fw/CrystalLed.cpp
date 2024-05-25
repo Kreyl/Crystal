@@ -11,7 +11,7 @@
 #include "ch.h"
 
 static ColorHSV_t curr_clr{0, 100, 100}, target_clr{0, 100, 100};
-static const uint32_t ksmooth = 450;
+static const systime_t kdelay_st = TIME_MS2I(27);
 static virtual_timer_t itmr;
 
 class Lipte_t {
@@ -51,7 +51,14 @@ Lipte_t Lipti[LED_CNT] = {
 
 static void TmrCallBack(void* p) {
     curr_clr.Adjust(target_clr);
-    for(auto &Lipte : Lipti) Lipte.SetHsv(curr_clr);
+    Color_t rgb;
+    curr_clr.ToRGB(rgb);
+    for(auto &Lipte : Lipti) Lipte.SetColor(rgb);
+    if(curr_clr != target_clr) {
+        chSysLockFromISR();
+        chVTSetI(&itmr, kdelay_st, TmrCallBack, nullptr);
+        chSysUnlockFromISR();
+    }
 }
 
 namespace CrystalLeds {
@@ -69,7 +76,7 @@ void SetHsvNow(ColorHSV_t hsv) {
 void SetHsvSmoothly(ColorHSV_t hsv) {
     chVTReset(&itmr);
     target_clr = hsv;
-    if(hsv != curr_clr) chVTSet(&itmr, 45, TmrCallBack, nullptr);
+    if(hsv != curr_clr) chVTSet(&itmr, kdelay_st, TmrCallBack, nullptr);
 }
 
 } // namespace
