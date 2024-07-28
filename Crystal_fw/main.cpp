@@ -20,8 +20,18 @@ CmdUart_t Uart{&CmdUartParams};
 void OnCmd(Shell_t *PShell);
 void ITask();
 
-static ColorHSV_t ordinal_clr = {300, 100, 100}; // Magenta
-static ColorHSV_t choosen_clr = {240, 100, 100}; // Blue, to start with red
+const EffSettings eff_settings[2] = {
+     //  Off     On       Smooth     Color1 H    Color2 H
+        {9, 45,  9, 54,   270, 630,   120, 160,   200, 260}, // 0 Green&Blue
+        {9, 45, 99, 99,   108, 810,     0,   7,   353, 360}, // 1 Red
+        /*
+        {9, 45,  9, 54,   108, 360,   330, 360,   215, 230}, // 0 Requiem
+        {9, 45,  9, 54,   108, 360,     0,  15,   250, 270}, // 2 tango
+        {9, 45,  9, 54,   405, 630,    80, 160,   260, 290}, // 3 waltz
+        {9, 45, 99, 99,   108, 630,   225, 250,   250, 265}, // 5 dance
+        {9, 45,  9, 54,   270, 405,   120, 270,    50,  77}, // 6
+        */
+};
 
 TmrKL_t TmrOneS {TIME_MS2I(999), evtIdEverySecond, tktPeriodic};
 #endif
