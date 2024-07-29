@@ -35,8 +35,8 @@ struct EffSettings {
 namespace CrystalLeds {
 
 void Init();
-void SetHsvNow(ColorHSV_t hsv);
-void SetHsvSmoothly(ColorHSV_t hsv);
+void On();
+void SetAllHsv(ColorHSV_t hsv);
 
 } // namespace
 

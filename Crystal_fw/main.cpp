@@ -20,10 +20,15 @@ CmdUart_t Uart{&CmdUartParams};
 void OnCmd(Shell_t *PShell);
 void ITask();
 
-const EffSettings eff_settings[2] = {
+extern Adc_t Adc;
+void OnMeasurementDone();
+
+static const uint32_t kEffCnt = 2;
+
+const EffSettings eff_settings[kEffCnt] = {
      //  Off     On       Smooth     Color1 H    Color2 H
-        {9, 45,  9, 54,   270, 630,   120, 160,   200, 260}, // 0 Green&Blue
-        {9, 45, 99, 99,   108, 810,     0,   7,   353, 360}, // 1 Red
+        {9, 45,  99,  99,  108, 810,    0,   2,   359, 360}, // 0 Red
+        {7, 18,  45, 180,  720, 999,   80, 160,   200, 260}, // 1 Green&Blue
         /*
         {9, 45,  9, 54,   108, 360,   330, 360,   215, 230}, // 0 Requiem
         {9, 45,  9, 54,   108, 360,     0,  15,   250, 270}, // 2 tango
@@ -32,6 +37,8 @@ const EffSettings eff_settings[2] = {
         {9, 45,  9, 54,   270, 405,   120, 270,    50,  77}, // 6
         */
 };
+
+const EffSettings *pcurr_settings = &eff_settings[1];
 
 TmrKL_t TmrOneS {TIME_MS2I(999), evtIdEverySecond, tktPeriodic};
 #endif
@@ -73,9 +80,17 @@ void main(void) {
     Printf("\r%S %S\r", APP_NAME, XSTRINGIFY(BUILD_TIME));
     Clk.PrintFreqs();
 
+    // LEDs
     CrystalLeds::Init();
-    CrystalLeds::SetHsvSmoothly(ordinal_clr);
+    CrystalLeds::On();
     SimpleSensors::Init(); // Buttons
+
+    // Battery measurement
+    PinSetupAnalog(ADC_BAT_PIN);
+    PinSetupOut(ADC_BAT_EN, omPushPull);
+    PinSetHi(ADC_BAT_EN);
+    Adc.Init();
+
     Radio.Init();
     TmrOneS.StartOrRestart();
 
@@ -95,30 +110,16 @@ void ITask() {
 
             case evtIdButtons:
                 Printf("Btn %u %u\r", Msg.BtnEvtInfo.BtnID, Msg.BtnEvtInfo.Type);
-                if(Msg.BtnEvtInfo.BtnID == 0 and (Msg.BtnEvtInfo.Type == beShortPress or Msg.BtnEvtInfo.Type == beRepeat)) {
-                    ordinal_clr.H++;
-                    if(ordinal_clr.H >= CLR_HSV_H_MAX) ordinal_clr.H = 0;
-                    CrystalLeds::SetHsvNow(ordinal_clr);
-                }
-                else if(Msg.BtnEvtInfo.BtnID == 1 and (Msg.BtnEvtInfo.Type == beShortPress or Msg.BtnEvtInfo.Type == beRepeat)) {
-                    if(ordinal_clr.H == 0) ordinal_clr.H = CLR_HSV_H_MAX;
-                    else ordinal_clr.H--;
-                    CrystalLeds::SetHsvNow(ordinal_clr);
-                }
-                else if(Msg.BtnEvtInfo.BtnID == 2 and Msg.BtnEvtInfo.Type == beShortPress) { // Switch choosen color
-                    if     (choosen_clr.H == 0)   choosen_clr.H = 120; // Red->Green
-                    else if(choosen_clr.H == 120) choosen_clr.H = 240; // Green->Blue
-                    else choosen_clr.H = 0;  // Blue (or whatever) ->Red
-                    ordinal_clr = choosen_clr;
-                    CrystalLeds::SetHsvSmoothly(ordinal_clr);
+                if(Msg.BtnEvtInfo.BtnID == 0) {
+                    Adc.StartMeasurement();
                 }
                 break;
 
             case evtIdRadioCmd:
-                Printf("RCmd\r");
-                choosen_clr.H = Msg.Value;
-                ordinal_clr.H = Msg.Value;
-                CrystalLeds::SetHsvSmoothly(ordinal_clr);
+                Printf("RCmd: %u\r", Msg.Value);
+                CrystalLeds::On();
+                if(Msg.Value == 0) pcurr_settings = &eff_settings[0];
+                else pcurr_settings = &eff_settings[1];
                 break;
 
             case evtIdEverySecond:
@@ -126,9 +127,28 @@ void ITask() {
                 Iwdg::Reload();
                 break;
 
+            case evtIdAdcRslt:
+                OnMeasurementDone();
+                break;
+
             default: break;
         } // switch
     } // while true
+}
+
+void OnMeasurementDone() {
+//    Printf("%u %u %u\r", Adc.GetResult(0), Adc.GetResult(1), Adc.Adc2mV(Adc.GetResult(0), Adc.GetResult(1)));
+    // Calculate voltage
+    uint32_t VBat = 2 * Adc.Adc2mV(Adc.GetResult(0), Adc.GetResult(1)); // *2 because of resistor divider
+    uint8_t Percent = mV2PercentAlkaline(VBat);
+    Printf("VBat: %umV; Percent: %u\r", VBat, Percent);
+    ColorHSV_t hsv;
+    if     (Percent <= 20) hsv = {0,   100, 100};
+    else if(Percent <  80) hsv = {30,  100, 100};
+    else                   hsv = {120, 100, 100};
+    CrystalLeds::SetAllHsv(hsv);
+    chThdSleepMilliseconds(1530);
+    CrystalLeds::On();
 }
 
 #if 1 // ======================= Command processing ============================

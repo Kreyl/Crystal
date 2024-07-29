@@ -9,7 +9,7 @@
 #define BOARD_H__
 
 // ==== General ====
-#define APP_NAME            "WanderingGhost"
+#define APP_NAME            "Red&Green"
 
 #ifndef TRUE
 #define TRUE    1
